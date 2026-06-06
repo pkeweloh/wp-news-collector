@@ -264,15 +264,6 @@ class NC_News_Processor {
 	}
 
 	/**
-	 * Re-upload to Catbox any media on existing items that still points at the
-	 * original (non-Catbox) URL. Idempotent: URLs already on files.catbox.moe
-	 * are left alone, so this is safe to run repeatedly.
-	 *
-	 * Requires `catbox_enabled` in settings. With it disabled, returns immediately.
-	 *
-	 * @return array{processed:int, updated:int, uploaded:int, skipped:int, errors:string[]}
-	 */
-	/**
 	 * Re-upload to Catbox any media still pointing at original (non-Catbox) URLs.
 	 * Idempotent. Pass $ids to limit to specific items; empty array = all items.
 	 *

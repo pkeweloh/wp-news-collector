@@ -295,9 +295,7 @@ class NC_Feed_Parser {
 		];
 	}
 
-	// -------------------------------------------------------------------------
 	// DOM helpers
-	// -------------------------------------------------------------------------
 
 	private static function load_html( string $html ): DOMDocument {
 		$dom  = new DOMDocument( '1.0', 'UTF-8' );
@@ -375,9 +373,7 @@ class NC_Feed_Parser {
 		return 'concat(' . implode( ',', $expr ) . ')';
 	}
 
-	// -------------------------------------------------------------------------
 	// Safe HTML serializer (whitelist: b, strong, i, em, a, br, p, span)
-	// -------------------------------------------------------------------------
 
 	private static function serialize_safe_html( DOMNode $node ): string {
 		$children = [];
@@ -487,9 +483,7 @@ class NC_Feed_Parser {
 		return implode( '', $parts );
 	}
 
-	// -------------------------------------------------------------------------
 	// Misc helpers
-	// -------------------------------------------------------------------------
 
 	private static function extract_telegram_id( string $guid ): int {
 		if ( preg_match( self::TELEGRAM_ID_RE, $guid, $m ) ) {

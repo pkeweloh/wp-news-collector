@@ -1,6 +1,6 @@
 <?php
 /**
- * "Últimas noticias" sidebar widget.
+ * Latest news sidebar widget.
  *
  * Renders the most recent N items from the news feed.
  * Each item links to its canonical /noticia/{id} page.
@@ -147,12 +147,10 @@ class NC_News_Widget extends WP_Widget {
 		if ( is_array( $article ) && '' !== (string) ( $article['image_url'] ?? '' ) ) {
 			return (string) $article['image_url'];
 		}
-		// First image.
 		$images = (array) ( $item['images'] ?? [] );
 		if ( ! empty( $images ) ) {
 			return (string) $images[0];
 		}
-		// First video poster.
 		foreach ( (array) ( $item['videos'] ?? [] ) as $v ) {
 			$v = (array) $v;
 			if ( '' !== (string) ( $v['poster_url'] ?? '' ) ) {

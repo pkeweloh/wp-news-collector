@@ -102,7 +102,6 @@ class NC_Rest {
 		$items    = $result['items'];
 		$has_next = (bool) $result['has_next'];
 
-		// Render each item using the same feed card template.
 		$show_images = true;
 		$show_videos = true;
 		$items_html  = '';

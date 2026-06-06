@@ -184,12 +184,6 @@ class NC_Item_Repository {
 
 	/**
 	 * Public-facing pagination: only enabled items.
-	 * Optional source filter.
-	 *
-	 * @return array<string, mixed>
-	 */
-	/**
-	 * Public-facing pagination: only enabled items.
 	 * $source accepts a single handle or a comma-separated list (e.g. "foo,bar").
 	 *
 	 * @return array<string, mixed>

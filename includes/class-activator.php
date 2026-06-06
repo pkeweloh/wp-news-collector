@@ -105,7 +105,7 @@ class NC_Activator {
 		$catbox_uploads = $wpdb->prefix . 'nc_catbox_uploads';
 		$catbox_albums  = $wpdb->prefix . 'nc_catbox_albums';
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names are not user input
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "DROP TABLE IF EXISTS {$catbox_uploads}" );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "DROP TABLE IF EXISTS {$catbox_albums}" );

@@ -20,9 +20,7 @@ class NC_Catbox_Upload_Repository {
 		$this->items_table   = $wpdb->prefix . 'nc_items';
 	}
 
-	// -------------------------------------------------------------------------
 	// Upload logging
-	// -------------------------------------------------------------------------
 
 	/**
 	 * Log a Catbox upload immediately after each successful upload.
@@ -158,9 +156,7 @@ class NC_Catbox_Upload_Repository {
 		];
 	}
 
-	// -------------------------------------------------------------------------
 	// Albums
-	// -------------------------------------------------------------------------
 
 	/**
 	 * Get the album short code for a given month (YYYY-MM). Returns '' if none.
