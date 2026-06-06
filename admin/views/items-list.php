@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Items list view.
  *
@@ -20,7 +20,7 @@ $filters = [
 ];
 ?>
 <div class="wrap nc-wrap">
-	<h1 class="wp-heading-inline"><?php esc_html_e( 'News Collector — Items', 'wp-news-collector' ); ?></h1>
+	<h1 class="wp-heading-inline"><?php esc_html_e( 'News Collector: Items', 'wp-news-collector' ); ?></h1>
 
 	<?php if ( '' !== $msg ) : ?>
 		<div class="notice notice-success is-dismissible"><p><?php
@@ -44,7 +44,7 @@ $filters = [
 		<input type="hidden" name="action" value="nc_items_bulk" />
 		<input type="hidden" name="vf" value="<?php echo esc_attr( $vf ); ?>" />
 		<input type="hidden" name="paged" value="<?php echo (int) $paged; ?>" />
-		<?php // Nonce is added by WP_List_Table::display_tablenav() as 'bulk-items' — do not add a second one here. ?>
+		<?php // Nonce is added by WP_List_Table::display_tablenav() as 'bulk-items': do not add a second one here. ?>
 
 		<div class="tablenav top">
 			<select name="bulk_action">

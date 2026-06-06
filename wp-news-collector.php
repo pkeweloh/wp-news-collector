@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Plugin Name: News Collector
  * Plugin URI:  https://github.com/pkeweloh/wp-news-collector
@@ -18,7 +18,7 @@ define( 'NC_PLUGIN_FILE', __FILE__ );
 define( 'NC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'NC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
-// Action Scheduler — bundle in vendor/ so it works without WooCommerce
+// Action Scheduler: bundle in vendor/ so it works without WooCommerce
 if ( ! class_exists( 'ActionScheduler_Versions' ) ) {
     require_once NC_PLUGIN_DIR . 'vendor/action-scheduler/action-scheduler.php';
 }

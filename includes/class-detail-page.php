@@ -1,9 +1,9 @@
-<?php
+﻿<?php
 /**
  * Server-side handler for /noticia/{id} canonical URLs.
  *
  * Renders a full page (with the theme's header/footer) when a visitor lands
- * directly on the item URL — shared link, refresh after pushState, or SEO crawl.
+ * directly on the item URL: shared link, refresh after pushState, or SEO crawl.
  *
  * @package wp-news-collector
  */
@@ -75,7 +75,7 @@ class NC_Detail_Page {
 			return $title;
 		}
 		$item = $this->items->get_by_id( $id );
-		return null === $item ? $title : $this->item_title( $item ) . ' — ' . get_bloginfo( 'name' );
+		return null === $item ? $title : $this->item_title( $item ) . ': ' . get_bloginfo( 'name' );
 	}
 
 	private function current_item_id(): int {
@@ -88,7 +88,7 @@ class NC_Detail_Page {
 	private function item_title( array $item ): string {
 		$title = (string) ( ( $item['article']['title'] ?? '' ) );
 		if ( '' === $title ) {
-			$title = sprintf( '%s — #%d', (string) $item['source_name'], (int) $item['id'] );
+			$title = sprintf( '%s #%d', (string) $item['source_name'], (int) $item['id'] );
 		}
 		return $title;
 	}

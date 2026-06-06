@@ -1,6 +1,6 @@
-<?php
+﻿<?php
 /**
- * Shared rendering helpers — port of alerta-boe NewsCard logic.
+ * Shared rendering helpers: port of alerta-boe NewsCard logic.
  *
  * @package wp-news-collector
  */
@@ -25,7 +25,7 @@ class NC_Template_Helpers {
 		$media = [];
 
 		$videos = (array) ( $item['videos'] ?? [] );
-		// Posters of un-fixed too_big videos — used to suppress duplicate pending entries
+		// Posters of un-fixed too_big videos: used to suppress duplicate pending entries
 		$too_big_posters = [];
 		foreach ( $videos as $v ) {
 			$v = (array) $v;
@@ -87,7 +87,7 @@ class NC_Template_Helpers {
 	}
 
 	/**
-	 * Too_big videos that are not yet uploaded to Catbox — rendered as
+	 * Too_big videos that are not yet uploaded to Catbox: rendered as
 	 * "open in Telegram" thumbnails below the media grid.
 	 *
 	 * @param array<string, mixed> $item
@@ -153,8 +153,8 @@ class NC_Template_Helpers {
 	/**
 	 * Format a UTC datetime string for display.
 	 * Timezone: wp_timezone() (Settings → General → Timezone).
-	 * Format:   translatable — default English "June 6, 21:44",
-	 *           Spanish .mo ships "j \d\e F, H:i" → "6 de junio, 21:44".
+	 * Format: translatable, default English "June 6, 21:44",
+	 *         Spanish .mo ships "j \d\e F, H:i" → "6 de junio, 21:44".
 	 */
 	public static function format_date_es( string $stored ): string {
 		if ( '' === $stored ) {

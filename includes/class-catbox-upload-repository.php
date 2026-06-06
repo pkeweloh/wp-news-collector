@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Repository for Catbox upload tracking (nc_catbox_uploads + nc_catbox_albums).
  *
@@ -24,7 +24,7 @@ class NC_Catbox_Upload_Repository {
 
 	/**
 	 * Log a Catbox upload immediately after each successful upload.
-	 * Uses INSERT IGNORE — idempotent on catbox_url.
+	 * Uses INSERT IGNORE: idempotent on catbox_url.
 	 */
 	public function log_upload(
 		string $source,

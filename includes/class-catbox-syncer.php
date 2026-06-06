@@ -1,10 +1,10 @@
-<?php
+﻿<?php
 /**
  * Daily reconciliation: track catbox uploads from nc_items and assign to monthly albums.
  * Port of alerta-boe/app/catbox_syncer.py.
  *
- * Phase 1 — Fill missing tracking: scan nc_items for catbox URLs not yet in nc_catbox_uploads.
- * Phase 2 — Assign to albums: get-or-create the monthly album and call add_to_album.
+ * Phase 1: scan nc_items for catbox URLs not yet in nc_catbox_uploads.
+ * Phase 2: get-or-create the monthly album and call add_to_album.
  *
  * @package wp-news-collector
  */

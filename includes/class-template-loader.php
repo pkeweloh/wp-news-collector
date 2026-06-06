@@ -1,6 +1,6 @@
-<?php
+﻿<?php
 /**
- * Template loader — theme override support.
+ * Template loader: theme override support.
  *
  * Themes can override any public template by placing a file at:
  *   wp-content/themes/{theme}/wp-news-collector/{template}
@@ -9,10 +9,10 @@
  *   wp-content/themes/mytheme/wp-news-collector/item.php
  *
  * Available templates:
- *   feed.php          — the feed container (loop + sentinel + disclaimer)
- *   item.php          — single item card rendered inside the feed
- *   item-detail.php   — full item content (modal + REST endpoint + standalone page)
- *   single-item.php   — full-page wrapper for /noticia/{id} (header/footer + item-detail)
+ *   feed.php         : the feed container (loop + sentinel + disclaimer)
+ *   item.php         : single item card rendered inside the feed
+ *   item-detail.php  : full item content (modal + REST endpoint + standalone page)
+ *   single-item.php  : full-page wrapper for /noticia/{id} (header/footer + item-detail)
  *
  * Child themes are checked before parent themes; plugin defaults are the final fallback.
  *

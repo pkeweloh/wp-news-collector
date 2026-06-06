@@ -1,9 +1,9 @@
-<?php
+﻿<?php
 /**
  * REST endpoints for the public feed.
  *
- *  GET /wp-json/nc/v1/item/{id}  — single item HTML (for modal hydration)
- *  GET /wp-json/nc/v1/feed       — paginated item HTML (for infinite scroll)
+ *  GET /wp-json/nc/v1/item/{id} : single item HTML (for modal hydration)
+ *  GET /wp-json/nc/v1/feed      : paginated item HTML (for infinite scroll)
  *
  * @package wp-news-collector
  */
@@ -77,7 +77,7 @@ class NC_Rest {
 
 		$title = (string) ( $item['article']['title'] ?? '' );
 		if ( '' === $title ) {
-			$title = sprintf( '%s — #%d', (string) $item['source_name'], $id );
+			$title = sprintf( '%s #%d', (string) $item['source_name'], $id );
 		}
 
 		return new WP_REST_Response(

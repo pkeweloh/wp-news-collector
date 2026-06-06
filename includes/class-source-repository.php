@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * CRUD for the nc_sources table.
  *
@@ -17,7 +17,7 @@ class NC_Source_Repository {
 	}
 
 	/**
-	 * Active sources (enabled=1) — used by the processor.
+	 * Active sources (enabled=1): used by the processor.
 	 *
 	 * @return array<int, array{url:string,name:string}>
 	 */

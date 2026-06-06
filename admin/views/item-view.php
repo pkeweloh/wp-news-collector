@@ -1,6 +1,6 @@
-<?php
+﻿<?php
 /**
- * Single item view — read + editable media form.
+ * Single item view: read + editable media form.
  *
  * @package wp-news-collector
  * @var array<string, mixed> $item
@@ -41,7 +41,7 @@ $valid_statuses = [ 'pending', 'ok', 'upload_failed', 'too_big' ];
 --------------------------------------------------------------------- -->
 <table class="widefat" style="max-width:900px;margin-bottom:1.5rem">
 	<tbody>
-		<tr><th><?php esc_html_e( 'GUID', 'wp-news-collector' ); ?></th><td><code><?php echo esc_html( (string) $item['guid'] ); ?></code> — <a href="<?php echo esc_url( (string) $item['guid'] ); ?>" target="_blank" rel="noreferrer noopener">Telegram ↗</a></td></tr>
+		<tr><th><?php esc_html_e( 'GUID', 'wp-news-collector' ); ?></th><td><code><?php echo esc_html( (string) $item['guid'] ); ?></code>: <a href="<?php echo esc_url( (string) $item['guid'] ); ?>" target="_blank" rel="noreferrer noopener">Telegram ↗</a></td></tr>
 		<tr><th><?php esc_html_e( 'Source', 'wp-news-collector' ); ?></th><td><?php echo esc_html( (string) $item['source_name'] ); ?> <em>(<?php echo esc_html( (string) $item['source'] ); ?>)</em></td></tr>
 		<tr><th><?php esc_html_e( 'Published', 'wp-news-collector' ); ?></th><td><?php echo esc_html( (string) $item['published_at'] ); ?></td></tr>
 		<tr><th><?php esc_html_e( 'Visible', 'wp-news-collector' ); ?></th><td><?php echo (int) $item['enabled'] === 1 ? esc_html__( 'Yes', 'wp-news-collector' ) : esc_html__( 'No', 'wp-news-collector' ); ?></td></tr>

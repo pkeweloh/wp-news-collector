@@ -1,6 +1,6 @@
-<?php
+﻿<?php
 /**
- * Standalone parser test — runs without WordPress.
+ * Standalone parser test: runs without WordPress.
  * Usage: php tests/test-feed-parser.php
  */
 
@@ -21,7 +21,7 @@ $failures = [];
 
 function assert_eq( string $label, $actual, $expected, array &$failures ): void {
 	if ( $actual !== $expected ) {
-		$failures[] = $label . ' — expected ' . var_export( $expected, true ) . ', got ' . var_export( $actual, true );
+		$failures[] = $label . ': expected ' . var_export( $expected, true ) . ', got ' . var_export( $actual, true );
 	} else {
 		echo "  ok: $label\n";
 	}

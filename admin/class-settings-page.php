@@ -1,6 +1,6 @@
-<?php
+﻿<?php
 /**
- * Settings page — Catbox / interval / max items.
+ * Settings page: Catbox / interval / max items.
  *
  * @package wp-news-collector
  */

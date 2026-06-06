@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Settings page view.
  *
@@ -10,14 +10,14 @@
 defined( 'ABSPATH' ) || exit;
 ?>
 <div class="wrap nc-wrap">
-	<h1><?php esc_html_e( 'News Collector — Settings', 'wp-news-collector' ); ?></h1>
+	<h1><?php esc_html_e( 'News Collector: Settings', 'wp-news-collector' ); ?></h1>
 
 	<?php if ( 'queued' === $msg ) : ?>
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Fetch job queued.', 'wp-news-collector' ); ?></p></div>
 	<?php elseif ( 'ran' === $msg ) : ?>
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Fetch cycle completed (Action Scheduler not available).', 'wp-news-collector' ); ?></p></div>
 	<?php elseif ( 'backfill_queued' === $msg ) : ?>
-		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Catbox backfill queued — it will run on the next Action Scheduler tick.', 'wp-news-collector' ); ?></p></div>
+		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Catbox backfill queued: it will run on the next Action Scheduler tick.', 'wp-news-collector' ); ?></p></div>
 	<?php elseif ( 'backfill_ran' === $msg ) : ?>
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Catbox backfill completed.', 'wp-news-collector' ); ?></p></div>
 	<?php elseif ( 'catbox_off' === $msg ) : ?>

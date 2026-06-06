@@ -1,6 +1,6 @@
-<?php
+﻿<?php
 /**
- * Admin bootstrap — menus, asset enqueue, form handlers.
+ * Admin bootstrap: menus, asset enqueue, form handlers.
  *
  * @package wp-news-collector
  */
@@ -92,9 +92,7 @@ class NC_Admin {
 		wp_enqueue_style( 'nc-admin', NC_PLUGIN_URL . 'assets/css/admin.css', [], NC_VERSION );
 	}
 
-	// -------------------------------------------------------------------------
 	// Form handlers (admin-post.php)
-	// -------------------------------------------------------------------------
 
 	public function handle_source_save(): void {
 		$this->ensure_admin();
@@ -240,7 +238,7 @@ class NC_Admin {
 		}
 		check_admin_referer( 'nc_item_media_save_' . $id );
 
-		// Parse images — keep non-empty URLs only.
+		// Parse images: keep non-empty URLs only.
 		$images = [];
 		if ( isset( $_POST['images'] ) && is_array( $_POST['images'] ) ) {
 			foreach ( $_POST['images'] as $raw ) {

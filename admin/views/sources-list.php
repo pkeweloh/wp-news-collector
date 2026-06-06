@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Sources list view.
  *
@@ -10,7 +10,7 @@
 defined( 'ABSPATH' ) || exit;
 ?>
 <div class="wrap nc-wrap">
-	<h1 class="wp-heading-inline"><?php esc_html_e( 'News Collector — Sources', 'wp-news-collector' ); ?></h1>
+	<h1 class="wp-heading-inline"><?php esc_html_e( 'News Collector: Sources', 'wp-news-collector' ); ?></h1>
 	<a href="<?php echo esc_url( add_query_arg( [ 'page' => 'nc_sources', 'edit' => 'new' ], admin_url( 'admin.php' ) ) ); ?>" class="page-title-action"><?php esc_html_e( 'Add new', 'wp-news-collector' ); ?></a>
 
 	<?php if ( 'added' === $msg ) : ?>

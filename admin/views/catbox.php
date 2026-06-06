@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Admin view: Catbox Albums & Sync.
  *
@@ -21,7 +21,7 @@ $msg_map = [
 ];
 ?>
 <div class="wrap">
-<h1><?php esc_html_e( 'Catbox — Albums & Sync', 'wp-news-collector' ); ?></h1>
+<h1><?php esc_html_e( 'Catbox: Albums & Sync', 'wp-news-collector' ); ?></h1>
 
 <?php if ( isset( $msg_map[ $msg ] ) ) : ?>
 	<div class="notice notice-<?php echo esc_attr( $msg_map[ $msg ][0] ); ?> is-dismissible">
@@ -57,7 +57,7 @@ $msg_map = [
 			<?php
 			printf(
 				// translators: 1: date/time, 2: tracked count, 3: assigned count
-				esc_html__( 'Last sync: %1$s — %2$d tracked, %3$d assigned to album.', 'wp-news-collector' ),
+				esc_html__( 'Last sync: %1$s: %2$d tracked, %3$d assigned to album.', 'wp-news-collector' ),
 				esc_html( (string) ( $sync_stats['ran_at'] ?? '—' ) ),
 				(int) ( $sync_stats['tracked'] ?? 0 ),
 				(int) ( $sync_stats['assigned'] ?? 0 )

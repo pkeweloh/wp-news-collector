@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Main plugin bootstrap class.
  *
@@ -110,7 +110,7 @@ class NC_Plugin {
 			$interval = max( 1, (int) $settings['fetch_interval_minutes'] ) * 60;
 			as_schedule_recurring_action( time() + 60, $interval, 'nc_fetch_all_sources', [], 'nc' );
 		}
-		// Daily catbox sync — only when userhash is configured.
+		// Daily catbox sync: only when userhash is configured.
 		$settings = self::get_settings();
 		if ( ! empty( $settings['catbox_userhash'] ) && ! as_next_scheduled_action( 'nc_catbox_sync' ) ) {
 			as_schedule_recurring_action( time() + 300, DAY_IN_SECONDS, 'nc_catbox_sync', [], 'nc' );

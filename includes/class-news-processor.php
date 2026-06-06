@@ -1,6 +1,6 @@
-<?php
+﻿<?php
 /**
- * News processing pipeline — orchestrates fetch / parse / enrich / save.
+ * News processing pipeline: orchestrates fetch / parse / enrich / save.
  *
  * Mirrors alerta-boe/app/news_processor.py.
  *
@@ -129,7 +129,7 @@ class NC_News_Processor {
 		$source_name = (string) ( $item['source_name'] ?? '' );
 		$guid        = (string) ( $item['guid'] ?? '' );
 
-		// 1) OG fetch for article URL (always — gives site_name; fallback image too).
+		// 1) OG fetch for article URL (always: gives site_name; fallback image too).
 		$article = $item['article'];
 		if ( is_array( $article ) && '' !== ( $article['url'] ?? '' ) ) {
 			$og = NC_OG_Scraper::fetch( (string) $article['url'] );

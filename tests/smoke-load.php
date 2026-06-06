@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Smoke load: ensure every plugin class file parses + autoloads without
  * a real WordPress instance. Stubs the WP API surface used at load time.
@@ -53,7 +53,7 @@ foreach ( $plugin_classes as $c ) {
 }
 echo "All classes present\n";
 
-// Verify AS bundle is registered as a deferred version (not yet initialized — that needs plugins_loaded).
+// Verify AS bundle is registered as a deferred version (not yet initialized: that needs plugins_loaded).
 if ( class_exists( 'ActionScheduler_Versions' ) ) {
 	echo "ActionScheduler_Versions loaded\n";
 } else {

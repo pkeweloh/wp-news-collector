@@ -1,6 +1,6 @@
-<?php
+﻿<?php
 /**
- * RSS feed parser — faithful port of alerta-boe/app/news_parser.py.
+ * RSS feed parser: faithful port of alerta-boe/app/news_parser.py.
  *
  * @package wp-news-collector
  */
@@ -359,7 +359,7 @@ class NC_Feed_Parser {
 		if ( false === strpos( $value, '"' ) ) {
 			return '"' . $value . '"';
 		}
-		// Has both — build a concat() expression.
+		// Has both: build a concat() expression.
 		$parts = explode( "'", $value );
 		$expr  = [];
 		foreach ( $parts as $i => $p ) {

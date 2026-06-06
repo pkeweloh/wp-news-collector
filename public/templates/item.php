@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Single item template (rendered inside feed.php).
  *
@@ -47,7 +47,7 @@ $date_label = NC_Template_Helpers::format_date_es( (string) $item['published_at'
 
 	<?php if ( $count > 0 ) : ?>
 		<?php if ( 1 === $count && 'image' === $media_list[0]['kind'] ) :
-			// Single image — no crop, natural dimensions.
+			// Single image: no crop, natural dimensions.
 			$m = $media_list[0];
 			?>
 			<div class="nc-item-media nc-item-img-wrap" data-nc-disable-lightbox="1">
@@ -57,7 +57,7 @@ $date_label = NC_Template_Helpers::format_date_es( (string) $item['published_at'
 				<?php endif; ?>
 			</div>
 		<?php elseif ( 1 === $count && 'video' === $media_list[0]['kind'] ) :
-			// Single video — inline muted autoplay via IntersectionObserver (mirrors alerta-boe VideoPlayer).
+			// Single video: inline muted autoplay via IntersectionObserver (mirrors alerta-boe VideoPlayer).
 			$m = $media_list[0];
 			?>
 			<div class="nc-item-media nc-item-video-inline" data-nc-disable-lightbox="1">
@@ -72,7 +72,7 @@ $date_label = NC_Template_Helpers::format_date_es( (string) $item['published_at'
 			</div>
 		<?php else :
 			// Multi-image grid or single video thumbnail.
-			// In the list, cells are not lightbox triggers — the card click opens the modal.
+			// In the list, cells are not lightbox triggers: the card click opens the modal.
 			?>
 			<div class="nc-item-media nc-item-media-grid nc-item-media-grid--<?php echo (int) min( 4, $count ); ?>"
 				data-nc-media="<?php echo esc_attr( (string) $media_json ); ?>"

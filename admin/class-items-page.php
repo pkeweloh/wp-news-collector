@@ -1,6 +1,6 @@
-<?php
+﻿<?php
 /**
- * Items admin page — list, filter, view, delete.
+ * Items admin page: list, filter, view, delete.
  *
  * @package wp-news-collector
  */

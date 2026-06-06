@@ -1,7 +1,7 @@
-<?php
+﻿<?php
 /**
  * Rewrite rule for canonical item permalinks (/{slug}/{id}).
- * The slug is configurable via Settings — default: "noticia".
+ * The slug is configurable via Settings (default: "noticia").
  *
  * @package wp-news-collector
  */

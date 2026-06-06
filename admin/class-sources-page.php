@@ -1,6 +1,6 @@
-<?php
+﻿<?php
 /**
- * Sources admin page — list, add, edit, delete.
+ * Sources admin page: list, add, edit, delete.
  *
  * @package wp-news-collector
  */

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Full item content (no theme chrome). Shared by the single-item page,
  * the REST endpoint and the in-page modal.
@@ -55,7 +55,7 @@ $single_featured_video = ( 1 === $count && 'video' === $media_list[0]['kind'] );
 				controls autoplay playsinline preload="auto"></video>
 		</div>
 	<?php elseif ( 1 === $count && 'image' === $media_list[0]['kind'] ) :
-		// Single image — no crop, lightbox-enabled.
+		// Single image: no crop, lightbox-enabled.
 		$m = $media_list[0];
 		?>
 		<div class="nc-item-media nc-item-img-wrap"

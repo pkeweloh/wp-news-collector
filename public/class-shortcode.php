@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * [news_feed] shortcode.
  *
@@ -67,7 +67,7 @@ class NC_Shortcode {
 
 	/**
 	 * [news_sources title="Fuentes"]
-	 * Standalone sources panel — same look as the old feed sidebar.
+	 * Standalone sources panel: same look as the old feed sidebar.
 	 * Place it in any sidebar widget area via the Shortcode block.
 	 *
 	 * @param array<string, mixed>|string $atts
@@ -126,7 +126,7 @@ class NC_Shortcode {
 
 	/**
 	 * [news_widget count="5" source="" title="Últimas noticias"]
-	 * Compact news list — use anywhere via the Shortcode block in Gutenberg.
+	 * Compact news list: use anywhere via the Shortcode block in Gutenberg.
 	 *
 	 * @param array<string, mixed>|string $atts
 	 */

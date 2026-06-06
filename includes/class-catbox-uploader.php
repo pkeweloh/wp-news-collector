@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Catbox (catbox.moe) uploader using the urlupload endpoint.
  *
@@ -127,7 +127,7 @@ class NC_Catbox_Uploader {
 		$out = trim( (string) wp_remote_retrieve_body( $response ) );
 
 		// Mirror the Python client: trust the body if it looks like a Catbox URL,
-		// regardless of HTTP status — Catbox sometimes returns 5xx alongside a
+		// regardless of HTTP status: Catbox sometimes returns 5xx alongside a
 		// valid URL when the upload actually succeeded.
 		if ( 0 === strpos( $out, 'https://files.catbox.moe/' ) ) {
 			return $out;
