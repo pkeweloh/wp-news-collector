@@ -1,0 +1,12 @@
+.nc-wrap .nc-inline-form input[type="url"],
+.nc-wrap .nc-inline-form input[type="text"] {
+	min-width: 280px;
+}
+
+.nc-wrap .nc-item-text p {
+	margin: 0 0 8px;
+}
+
+.nc-wrap .nc-item-text a {
+	color: #2271b1;
+}

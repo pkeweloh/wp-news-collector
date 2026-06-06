@@ -1,0 +1,367 @@
+# Spanish (Spain) translation for wp-news-collector
+# Copyright (C) 2026 pkeweloh
+# This file is distributed under the GPL-2.0-or-later license.
+msgid ""
+msgstr ""
+"Project-Id-Version: wp-news-collector 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-06\n"
+"PO-Revision-Date: 2026-06-06\n"
+"Last-Translator: pkeweloh\n"
+"Language-Team: Spanish (Spain)\n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Domain: wp-news-collector\n"
+
+msgid "%d errors"
+msgstr "%d errores"
+
+msgid "%d items"
+msgstr "%d ítems"
+
+msgid "Action completed: %s"
+msgstr "Acción completada: %s"
+
+msgid "Actions"
+msgstr "Acciones"
+
+msgid "Add image"
+msgstr "Añadir imagen"
+
+msgid "Add source"
+msgstr "Añadir fuente"
+
+msgid "Add video"
+msgstr "Añadir vídeo"
+
+msgid "Album"
+msgstr "Álbum"
+
+msgid "Albums"
+msgstr "Álbumes"
+
+msgid "All"
+msgstr "Todos"
+
+msgid "Apply"
+msgstr "Aplicar"
+
+msgid "Article"
+msgstr "Artículo"
+
+msgid "Back to items"
+msgstr "Volver a ítems"
+
+msgid "Bulk actions"
+msgstr "Acciones en lote"
+
+msgid "Catbox URL"
+msgstr "URL de Catbox"
+
+msgid "Catbox backfill completed."
+msgstr "Backfill de Catbox completado."
+
+msgid "Catbox backfill queued — it will run on the next Action Scheduler tick."
+msgstr "Backfill de Catbox encolado — se ejecutará en el siguiente tick de Action Scheduler."
+
+msgid "Catbox userhash"
+msgstr "Userhash de Catbox"
+
+msgid "Catbox — Albums & Sync"
+msgstr "Catbox — Álbumes y Sync"
+
+msgid "Created"
+msgstr "Creado"
+
+msgid "Daily sync"
+msgstr "Sync diario"
+
+msgid "Delete"
+msgstr "Eliminar"
+
+msgid "Delete this item?"
+msgstr "¿Eliminar este ítem?"
+
+msgid "Delete this source?"
+msgstr "¿Eliminar esta fuente?"
+
+msgid "Display name (optional)"
+msgstr "Nombre para mostrar (opcional)"
+
+msgid "Displays the latest news from the feed."
+msgstr "Muestra las últimas noticias del feed."
+
+msgid "Edit source"
+msgstr "Editar fuente"
+
+msgid "Enable Catbox uploads"
+msgstr "Activar subida a Catbox"
+
+msgid "Enable Catbox uploads first and save settings, then run the backfill."
+msgstr "Activa primero la subida a Catbox y guarda los ajustes antes de ejecutar el backfill."
+
+msgid "Enabled"
+msgstr "Activo"
+
+msgid "Expand image"
+msgstr "Ampliar imagen"
+
+msgid "Fetch cycle completed (Action Scheduler not available)."
+msgstr "Ciclo completado (Action Scheduler no disponible)."
+
+msgid "Fetch interval (minutes)"
+msgstr "Intervalo de actualización (minutos)"
+
+msgid "Fetch job queued."
+msgstr "Trabajo de actualización encolado."
+
+msgid "Files"
+msgstr "Ficheros"
+
+msgid "Filter"
+msgstr "Filtrar"
+
+msgid "Filter by source (handle, optional):"
+msgstr "Filtrar por fuente (handle, opcional):"
+
+msgid "Follow on Telegram"
+msgstr "Seguir en Telegram"
+
+msgid "Hidden"
+msgstr "Ocultos"
+
+msgid "Hide"
+msgstr "Ocultar"
+
+msgid "Idempotent: items whose media already lives on files.catbox.moe are skipped."
+msgstr "Idempotente: los ítems cuya media ya está en files.catbox.moe se omiten."
+
+msgid "Images"
+msgstr "Imágenes"
+
+msgid "Invalid item ID."
+msgstr "ID de ítem no válido."
+
+msgid "Item #%d"
+msgstr "Ítem #%d"
+
+msgid "Item not found"
+msgstr "Ítem no encontrado"
+
+msgid "Item not found."
+msgstr "Ítem no encontrado."
+
+msgid "Last sync: %1$s — %2$d tracked, %3$d assigned to album."
+msgstr "Último sync: %1$s — %2$d rastreados, %3$d asignados a álbum."
+
+msgid "Latest news"
+msgstr "Últimas noticias"
+
+msgid "Loading…"
+msgstr "Cargando…"
+
+msgid "Max items per source per cycle"
+msgstr "Máximo de ítems por fuente por ciclo"
+
+msgid "Media saved successfully."
+msgstr "Media guardada correctamente."
+
+msgid "Month"
+msgstr "Mes"
+
+msgid "Monthly albums"
+msgstr "Álbumes mensuales"
+
+msgid "Muted"
+msgstr "Sin sonido"
+
+msgid "News Collector — Items"
+msgstr "News Collector — Ítems"
+
+msgid "News Collector — Settings"
+msgstr "News Collector — Ajustes"
+
+msgid "News Collector — Sources"
+msgstr "News Collector — Fuentes"
+
+msgid "News feed"
+msgstr "Listado de noticias"
+
+msgid "Next"
+msgstr "Siguiente"
+
+msgid "No"
+msgstr "No"
+
+msgid "No album"
+msgstr "Sin álbum"
+
+msgid "No albums yet. They are created automatically with the first sync."
+msgstr "No hay álbumes todavía. Se crean automáticamente con el primer sync."
+
+msgid "No news"
+msgstr "Sin noticias"
+
+msgid "No news yet. Check back soon."
+msgstr "Todavía no hay noticias disponibles. Vuelve pronto."
+
+msgid "No sync has been run yet."
+msgstr "Todavía no se ha ejecutado ningún sync."
+
+msgid "No uploads to show."
+msgstr "No hay uploads que mostrar."
+
+msgid "Number of items (1–10):"
+msgstr "Número de ítems (1–10):"
+
+msgid "Optional. Tie uploads to a Catbox account."
+msgstr "Opcional. Vincula las subidas a una cuenta de Catbox."
+
+msgid "Original URL:"
+msgstr "URL original:"
+
+msgid "Page %1$d of %2$d"
+msgstr "Página %1$d de %2$d"
+
+msgid "Permalink"
+msgstr "Enlace permanente"
+
+msgid "Poster URL"
+msgstr "URL del póster"
+
+msgid "Previous"
+msgstr "Anterior"
+
+msgid "Published"
+msgstr "Publicado"
+
+msgid "Raw description"
+msgstr "Descripción raw"
+
+msgid "Re-upload existing items to Catbox"
+msgstr "Resubir ítems existentes a Catbox"
+
+msgid "Remove"
+msgstr "Quitar"
+
+msgid "Remove video"
+msgstr "Quitar vídeo"
+
+msgid "Retry Catbox"
+msgstr "Reintentar Catbox"
+
+msgid "Run now"
+msgstr "Ejecutar ahora"
+
+msgid "Run sync now"
+msgstr "Ejecutar sync ahora"
+
+msgid "Save"
+msgstr "Guardar"
+
+msgid "Save media"
+msgstr "Guardar media"
+
+msgid "Show"
+msgstr "Mostrar"
+
+msgid "Source"
+msgstr "Fuente"
+
+msgid "Source added."
+msgstr "Fuente añadida."
+
+msgid "Source deleted."
+msgstr "Fuente eliminada."
+
+msgid "Source toggled."
+msgstr "Fuente activada/desactivada."
+
+msgid "Source updated."
+msgstr "Fuente actualizada."
+
+msgid "Sources"
+msgstr "Fuentes"
+
+msgid "Status"
+msgstr "Estado"
+
+msgid "Text"
+msgstr "Texto"
+
+msgid "This section aggregates posts from third-party Telegram channels. Opinions expressed are the sole responsibility of their authors."
+msgstr "Esta sección agrega publicaciones de canales de Telegram de terceros. Las opiniones expresadas son responsabilidad exclusiva de sus autores."
+
+msgid "This will re-upload all non-Catbox media on existing items. Continue?"
+msgstr "¿Resubir toda la media de ítems existentes que no esté en Catbox?"
+
+msgid "Title:"
+msgstr "Título:"
+
+msgid "Too big"
+msgstr "Demasiado grande"
+
+msgid "Total uploads"
+msgstr "Total de subidas"
+
+msgid "Tracked uploads"
+msgstr "Uploads rastreados"
+
+msgid "Type"
+msgstr "Tipo"
+
+msgid "URL cannot be edited. Delete and re-add to change it."
+msgstr "La URL no se puede editar. Elimínala y vuelve a añadirla para cambiarla."
+
+msgid "URL is required."
+msgstr "La URL es obligatoria."
+
+msgid "Upload all images and videos to catbox.moe for persistent hosting."
+msgstr "Sube todas las imágenes y vídeos a catbox.moe para alojamiento permanente."
+
+msgid "Upload failed"
+msgstr "Error de subida"
+
+msgid "Uploaded"
+msgstr "Subido"
+
+msgid "Video %d"
+msgstr "Vídeo %d"
+
+msgid "Videos"
+msgstr "Vídeos"
+
+msgid "View"
+msgstr "Ver"
+
+msgid "View %s on Telegram"
+msgstr "Ver %s en Telegram"
+
+msgid "Visible"
+msgstr "Visible"
+
+msgid "Watch on YouTube"
+msgstr "Ver en YouTube"
+
+msgid "Watch video"
+msgstr "Ver vídeo"
+
+msgid "Yes"
+msgstr "Sí"
+
+msgid "You do not have permission to do that."
+msgstr "No tienes permiso para hacer esto."
+
+msgid "%d item"
+msgid_plural "%d items"
+msgstr[0] "%d ítem"
+msgstr[1] "%d ítems"
+
+#. translators: PHP date format for news item timestamps. See https://www.php.net/date
+#. Spanish: j \d\e F, H:i  gives  6 de junio, 21:44
+msgid "F j, H:i"
+msgstr "j \d\e F, H:i"
+

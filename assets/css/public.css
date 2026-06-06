@@ -1,0 +1,626 @@
+/*
+ * Design tokens — override any of these in your theme CSS to match its design language.
+ * Example:
+ *   :root { --nc-radius: 0; --nc-accent: #e45d12; --nc-card-bg: #f5f5f5; }
+ */
+:root {
+	--nc-radius:       8px;
+	--nc-accent:       #2271b1;
+	--nc-accent-bg:    rgba(34, 113, 177, 0.04);
+	--nc-accent-hover: rgba(34, 113, 177, 0.08);
+	--nc-card-bg:      #fff;
+	--nc-border:       #e2e2e2;
+	--nc-muted:        #888;
+	--nc-surface:      #f4f4f4;
+	--nc-text:         #222;
+}
+
+.nc-feed { display: flex; flex-direction: column; gap: 24px; }
+
+.nc-item {
+	padding: 16px;
+	background: var(--nc-card-bg);
+	border: 1px solid var(--nc-border);
+	border-radius: var(--nc-radius);
+	overflow: hidden;
+	transition: box-shadow .15s ease;
+}
+.nc-item--clickable { cursor: pointer; }
+.nc-item--clickable:hover { box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); }
+
+/* Clickable children inside a clickable card should display their own affordance. */
+.nc-item--clickable .nc-item-article,
+.nc-item--clickable .nc-item-tg-video,
+.nc-item--clickable .nc-item-yt-cta,
+.nc-item--clickable .nc-item-text a,
+.nc-item--clickable .nc-item-permalink { cursor: pointer; }
+
+.nc-item-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	font-size: 0.85em;
+	color: var(--nc-muted);
+	margin-bottom: 10px;
+}
+
+.nc-item-source { font-weight: 700; font-size: 0.85em; color: var(--nc-accent); }
+
+.nc-item-header-right { display: inline-flex; align-items: center; gap: 8px; }
+.nc-item-time { font-size: 0.8em; color: var(--nc-muted); }
+
+.nc-item-permalink {
+	display: inline-flex;
+	align-items: center;
+	color: inherit;
+	opacity: 0.45;
+	transition: opacity .15s;
+	text-decoration: none;
+}
+.nc-item-permalink:hover { opacity: 1; }
+
+.nc-item-body { display: flex; flex-direction: column; gap: 12px; }
+.nc-item-text { line-height: 1.5; }
+.nc-item-text p { margin: 0 0 8px; }
+
+/* -------------------------------------------------------------------------
+ * Media grid — N=1/2/3/4 layout
+ * ------------------------------------------------------------------------- */
+.nc-item-media { margin-bottom: 12px; }
+.nc-item-media-grid {
+	display: grid;
+	gap: 4px;
+	border-radius: calc(var(--nc-radius) * 0.75);
+	overflow: hidden;
+}
+.nc-item-media-grid--1 { grid-template-columns: 1fr; } /* only for single video thumbnails */
+.nc-item-media-grid--2 { grid-template-columns: 1fr 1fr; }
+.nc-item-media-grid--3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.nc-item-media-grid--3 .nc-media-cell:first-child { grid-column: 1 / span 2; }
+.nc-item-media-grid--4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+
+.nc-media-cell {
+	position: relative;
+	display: block;
+	width: 100%;
+	padding: 0;
+	margin: 0;
+	border: 0;
+	background: #111;
+	overflow: hidden;
+	aspect-ratio: 4 / 3;
+}
+/* Single-image cells use nc-item-img-wrap instead of the grid, so grid--1 is only for video thumbnails */
+.nc-item-media-grid--1 .nc-media-cell { aspect-ratio: 16 / 9; }
+
+/* Inside the modal/detail, cells are buttons that should look clickable. */
+button.nc-media-cell { cursor: pointer; }
+/* Inside list cards (no lightbox), cells are divs and click bubbles to the card. */
+.nc-item--clickable .nc-media-cell { cursor: pointer; }
+
+.nc-media-cell__thumb {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+	transition: transform .25s ease;
+}
+button.nc-media-cell:hover .nc-media-cell__thumb { transform: scale(1.03); }
+.nc-media-cell__dark {
+	display: block;
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(135deg, #2c2c2c, #555);
+}
+
+.nc-media-cell__play {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+}
+.nc-media-cell__overflow {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #fff;
+	font-size: 1.5em;
+	font-weight: 700;
+	background: rgba(0, 0, 0, 0.55);
+}
+
+/* Featured single video inside the modal/detail. */
+.nc-item-featured-video {
+	width: 100%;
+	background: #000;
+	border-radius: calc(var(--nc-radius) * 0.75);
+	overflow: hidden;
+}
+.nc-item-featured-video__el {
+	width: 100%;
+	max-height: 70vh;
+	display: block;
+}
+
+/* too_big videos — Telegram link with poster and play icon. */
+.nc-item-tg-video {
+	display: block;
+	text-decoration: none;
+	margin-bottom: 12px;
+}
+.nc-item-tg-video:hover { opacity: 0.92; }
+.nc-tg-video-thumb {
+	position: relative;
+	border-radius: calc(var(--nc-radius) * 0.75);
+	overflow: hidden;
+}
+.nc-tg-video-thumb img { width: 100%; display: block; }
+
+/* -------------------------------------------------------------------------
+ * Single image — no crop, natural dimensions (mirrors alerta-boe news-card-img-wrap)
+ * ------------------------------------------------------------------------- */
+.nc-item-img-wrap {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--nc-surface);
+	max-height: 500px;
+	overflow: hidden;
+	position: relative;
+	margin-bottom: 12px;
+}
+.nc-item-img {
+	display: block;
+	width: auto;
+	max-width: 100%;
+	max-height: 500px;
+	height: auto;
+}
+.nc-item-img-btn {
+	display: block;
+	width: 100%;
+	border: 0;
+	background: none;
+	padding: 0;
+	cursor: pointer;
+	position: relative;
+	line-height: 0;
+}
+.nc-item-img-btn .nc-item-img { width: 100%; }
+/* In modal/detail: full-width, no height limit */
+.nc-item--detail .nc-item-img-wrap {
+	max-height: none;
+	display: block;
+	background: none;
+}
+.nc-item--detail .nc-item-img { width: 100%; max-height: none; }
+
+/* -------------------------------------------------------------------------
+ * Article card — vertical layout with left accent border (mirrors alerta-boe)
+ * ------------------------------------------------------------------------- */
+.nc-item-article {
+	display: block;
+	margin: 0.4rem -16px -16px;
+	border-left: 3px solid var(--nc-accent);
+	border-radius: 0;
+	overflow: hidden;
+	background: var(--nc-accent-bg);
+	text-decoration: none;
+	color: inherit;
+	transition: background 0.15s;
+}
+.nc-item-article:hover { background: var(--nc-accent-hover); }
+.nc-item-article__body {
+	padding: 0.55rem 0.75rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+.nc-item-article__source {
+	font-size: 0.7rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--nc-accent);
+}
+.nc-item-article__title { font-size: 0.88rem; font-weight: 600; line-height: 1.35; }
+.nc-item-article__excerpt {
+	font-size: 0.8rem;
+	color: var(--nc-muted);
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	line-height: 1.4;
+}
+.nc-item-article__image {
+	display: block;
+	width: 100%;
+	max-height: 420px;
+	object-fit: cover;
+}
+
+/* "Ver en YouTube" CTA, mirroring alerta-boe .news-card-yt */
+.nc-item-yt-cta {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5em;
+	padding: 0.55rem 0.75rem;
+	border: 1px solid rgba(255, 0, 0, 0.25);
+	border-radius: calc(var(--nc-radius) * 0.75);
+	color: #b00;
+	text-decoration: none;
+	font-weight: 600;
+	font-size: 0.9em;
+	align-self: flex-start;
+}
+.nc-item-yt-cta:hover { background: rgba(255, 0, 0, 0.08); }
+.nc-item-yt-cta__icon { color: #ff0000; }
+
+.nc-feed-empty { color: var(--nc-muted); font-style: italic; }
+
+/* -------------------------------------------------------------------------
+ * Media lightbox (image / video viewer)
+ * ------------------------------------------------------------------------- */
+.nc-lightbox {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	background: rgba(0, 0, 0, 0.92);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	animation: nc-lightbox-fade .15s ease-out;
+}
+@keyframes nc-lightbox-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.nc-lightbox__close {
+	position: absolute;
+	top: 16px;
+	right: 16px;
+	width: 44px;
+	height: 44px;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.12);
+	color: #fff;
+	font-size: 22px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background .15s;
+}
+.nc-lightbox__close:hover { background: rgba(255, 255, 255, 0.25); }
+
+.nc-lightbox__arrow {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 56px;
+	height: 56px;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.12);
+	color: #fff;
+	font-size: 40px;
+	line-height: 1;
+	cursor: pointer;
+	transition: background .15s;
+}
+.nc-lightbox__arrow:hover { background: rgba(255, 255, 255, 0.25); }
+.nc-lightbox__arrow--prev { left: 16px; }
+.nc-lightbox__arrow--next { right: 16px; }
+
+.nc-lightbox__media {
+	max-width: 95vw;
+	max-height: 90vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.nc-lightbox__img,
+.nc-lightbox__video {
+	max-width: 95vw;
+	max-height: 90vh;
+	object-fit: contain;
+	display: block;
+	border-radius: calc(var(--nc-radius) * 0.5);
+}
+
+.nc-lightbox__dots {
+	position: absolute;
+	bottom: 20px;
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	gap: 8px;
+}
+.nc-lightbox__dot {
+	width: 10px;
+	height: 10px;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.35);
+	cursor: pointer;
+	padding: 0;
+	transition: background .15s;
+}
+.nc-lightbox__dot--active { background: var(--nc-card-bg); }
+
+@media (max-width: 600px) {
+	.nc-lightbox__arrow { width: 44px; height: 44px; font-size: 32px; }
+	.nc-lightbox__arrow--prev { left: 8px; }
+	.nc-lightbox__arrow--next { right: 8px; }
+}
+
+/* -------------------------------------------------------------------------
+ * Item modal — full card content over the feed (pushState pattern).
+ * ------------------------------------------------------------------------- */
+.nc-item-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 90000;
+	background: rgba(0, 0, 0, 0.6);
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding: 40px 20px;
+	overflow-y: auto;
+	animation: nc-item-modal-fade .15s ease-out;
+}
+@keyframes nc-item-modal-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.nc-item-modal__close {
+	position: fixed;
+	top: 16px;
+	right: 16px;
+	width: 44px;
+	height: 44px;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.95);
+	color: #111;
+	font-size: 20px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+	z-index: 1;
+}
+.nc-item-modal__close:hover { background: var(--nc-card-bg); }
+
+.nc-item-modal__content {
+	background: var(--nc-card-bg);
+	border-radius: var(--nc-radius);
+	width: 100%;
+	max-width: 700px;
+	padding: 24px;
+	margin: auto;
+}
+.nc-item-modal__content .nc-item { padding: 0; border: 0; border-radius: 0; overflow: visible; }
+/* Reset negative bleed margins inside modal (no padding to bleed into) */
+.nc-item-modal__content .nc-item-article { margin-left: 0; margin-right: 0; margin-bottom: 0; }
+.nc-item-modal__loading,
+.nc-item-modal__error {
+	padding: 40px 0;
+	text-align: center;
+	color: var(--nc-muted);
+}
+
+/* -------------------------------------------------------------------------
+ * Standalone detail page (/noticia/{id})
+ * ------------------------------------------------------------------------- */
+.nc-detail-page__inner {
+	max-width: 700px;
+	margin: 24px auto;
+	padding: 0 16px;
+}
+
+@media (max-width: 600px) {
+	.nc-item-modal { padding: 20px 10px; }
+	.nc-item-modal__content { padding: 16px; }
+}
+
+/* -------------------------------------------------------------------------
+ * Feed layout — single column (sidebar removed from feed; use [news_sources]).
+ * The nc-feed-sidebar styles below are kept for the [news_sources] shortcode.
+ * ------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------
+ * Sources sidebar
+ * ------------------------------------------------------------------------- */
+.nc-feed-sidebar {
+	position: sticky;
+	top: 5rem;
+	background: var(--nc-card-bg);
+	border-radius: var(--nc-radius);
+	padding: 1.1rem 1rem;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+.nc-feed-sidebar__title {
+	font-size: 0.72rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--nc-muted);
+	margin: 0 0 0.75rem;
+}
+.nc-feed-source-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.45rem;
+}
+.nc-feed-source-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+	font-size: 0.84rem;
+	color: var(--nc-text);
+}
+.nc-feed-source-dot {
+	flex-shrink: 0;
+	margin-top: 0.5em;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--nc-accent);
+}
+.nc-feed-source-body {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	min-width: 0;
+}
+.nc-feed-source-name { font-weight: 600; }
+.nc-feed-source-tg {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: var(--nc-muted);
+	text-decoration: none;
+	transition: color .15s;
+}
+.nc-feed-source-tg:hover { color: #2aabee; }
+
+/* -------------------------------------------------------------------------
+ * Disclaimer footer
+ * ------------------------------------------------------------------------- */
+.nc-feed-disclaimer {
+	margin-top: 2.5rem;
+	padding: 1rem 0;
+	border-top: 1px solid var(--nc-border);
+	font-size: 0.78rem;
+	color: var(--nc-muted);
+	line-height: 1.65;
+}
+.nc-feed-disclaimer p { margin: 0; }
+
+/* -------------------------------------------------------------------------
+ * Infinite scroll loading state
+ * ------------------------------------------------------------------------- */
+.nc-feed-sentinel { height: 1px; }
+.nc-feed-loading {
+	text-align: center;
+	color: var(--nc-muted);
+	font-size: 0.9em;
+	padding: 16px 0;
+}
+
+@media (max-width: 768px) {
+	.nc-feed-sidebar { position: static; }
+}
+
+/* -------------------------------------------------------------------------
+ * Sidebar widget: Últimas noticias — card style
+ * ------------------------------------------------------------------------- */
+.nc-widget-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.nc-widget-item {
+	background: var(--nc-card-bg);
+	border-radius: var(--nc-radius);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07), 0 0 0 1px rgba(0, 0, 0, 0.05);
+	transition: box-shadow .15s;
+	padding: 8px;
+}
+.nc-widget-item:hover {
+	box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+.nc-widget-item__link {
+	display: flex;
+	gap: 10px;
+	text-decoration: none;
+	color: inherit;
+	align-items: flex-start;
+}
+.nc-widget-item__thumb {
+	width: 82px;
+	height: auto;
+	max-height: 120px;
+	object-fit: contain;
+	background: var(--nc-surface);
+	border-radius: calc(var(--nc-radius) * 0.625);
+	flex-shrink: 0;
+	display: block;
+	align-self: flex-start;
+}
+.nc-widget-item__body {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+	justify-content: center;
+}
+.nc-widget-item__source {
+	font-size: 0.68rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--nc-accent);
+}
+.nc-widget-item__text {
+	font-size: 0.84rem;
+	line-height: 1.4;
+	color: var(--nc-text);
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	transition: color .15s;
+}
+.nc-widget-item:hover .nc-widget-item__text { color: var(--nc-accent); }
+.nc-widget-item__time {
+	font-size: 0.72rem;
+	color: var(--nc-muted);
+	margin-top: 2px;
+}
+
+/* -------------------------------------------------------------------------
+ * Inline muted video in feed cards (mirrors alerta-boe VideoPlayer inline mode)
+ * ------------------------------------------------------------------------- */
+.nc-item-video-inline {
+	position: relative;
+	width: 100%;
+	background: #000;
+	border-radius: calc(var(--nc-radius) * 0.75);
+	overflow: hidden;
+	margin-bottom: 12px;
+}
+.nc-item-video-inline__el {
+	display: block;
+	width: 100%;
+	height: auto;
+	max-height: 420px;
+}
+.nc-item-video-inline__mute {
+	position: absolute;
+	bottom: 8px;
+	right: 8px;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+}

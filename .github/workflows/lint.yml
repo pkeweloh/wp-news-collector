@@ -1,0 +1,33 @@
+name: PHP Lint
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  lint:
+    name: PHP Syntax Check
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php: ["8.1", "8.2", "8.3"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+
+      - name: Lint PHP files
+        run: |
+          find wp-news-collector.php includes/ -name "*.php" | xargs -I{} php -l {}
+          echo "Lint passed on PHP ${{ matrix.php }}"
+
+      - name: Run feed parser tests
+        run: php tests/test-feed-parser.php

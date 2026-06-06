@@ -1,0 +1,19 @@
+# Claude Code
+.claude/
+
+# IDE
+.idea/
+.vscode/
+
+# Local development environment (Docker setup — not part of the plugin)
+docker/
+
+# Dev docs and internal planning (scripts, notes — not shipped)
+docs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

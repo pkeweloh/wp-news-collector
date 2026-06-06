@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Channel</title>
+    <link>https://t.me/test</link>
+    <description>Telegram channel</description>
+    <item>
+      <title>Item 1</title>
+      <link>https://t.me/test/1001</link>
+      <guid>https://t.me/test/1001</guid>
+      <pubDate>Tue, 01 Apr 2025 10:00:00 +0000</pubDate>
+      <description><![CDATA[<p>Hola <b>mundo</b>. <a href="https://example.com/news">Ver más</a></p><img src="https://example.com/img1.jpg"/>]]></description>
+    </item>
+    <item>
+      <title>Item 2 - article</title>
+      <link>https://t.me/test/1002</link>
+      <guid>https://t.me/test/1002</guid>
+      <pubDate>Tue, 01 Apr 2025 10:05:00 +0000</pubDate>
+      <description><![CDATA[<p><a href="https://news.example.com/article-42">https://news.example.com/article-42</a></p><blockquote><img src="https://news.example.com/cover.jpg"/><b>Example News</b><br/><b>Titular del articulo</b><br/>Resumen breve del articulo de prueba.</blockquote>]]></description>
+    </item>
+    <item>
+      <title>Item 3 - too big</title>
+      <link>https://t.me/test/1003</link>
+      <guid>https://t.me/test/1003</guid>
+      <pubDate>Tue, 01 Apr 2025 10:10:00 +0000</pubDate>
+      <description><![CDATA[<video src="https://t.me/test/1003/video.mp4" poster="https://t.me/test/1003/poster.jpg"></video><blockquote><img src="https://t.me/test/1003/poster.jpg"/>Video too big, click to open in Telegram.</blockquote>]]></description>
+    </item>
+    <item>
+      <title>Item 4 - youtube + forwarded</title>
+      <link>https://t.me/test/1004</link>
+      <guid>https://t.me/test/1004</guid>
+      <pubDate>Tue, 01 Apr 2025 10:15:00 +0000</pubDate>
+      <description><![CDATA[Forwarded From <b>Otra Cuenta</b><br/>Mira este video: <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ">enlace</a> y otro <a href="https://youtu.be/aBcDeFgHiJk">corto</a>.]]></description>
+    </item>
+    <item>
+      <title>Item 5 - missing guid</title>
+      <pubDate>Tue, 01 Apr 2025 10:20:00 +0000</pubDate>
+      <description><![CDATA[<p>Sin guid ni link, debe descartarse.</p>]]></description>
+    </item>
+  </channel>
+</rss>

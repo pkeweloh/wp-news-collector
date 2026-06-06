@@ -1,0 +1,248 @@
+<?php
+/**
+ * Single item view — read + editable media form.
+ *
+ * @package wp-news-collector
+ * @var array<string, mixed> $item
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+$allowed = [
+	'b'      => [],
+	'strong' => [],
+	'i'      => [],
+	'em'     => [],
+	'br'     => [],
+	'p'      => [],
+	'a'      => [ 'href' => true, 'target' => true, 'rel' => true ],
+];
+
+$id   = (int) $item['id'];
+$back = add_query_arg( [ 'page' => 'nc_items' ], admin_url( 'admin.php' ) );
+$msg  = isset( $_GET['nc_msg'] ) ? sanitize_key( (string) $_GET['nc_msg'] ) : '';
+
+$videos  = (array) ( $item['videos'] ?? [] );
+$images  = (array) ( $item['images'] ?? [] );
+$article = is_array( $item['article'] ?? null ) ? $item['article'] : null;
+
+$valid_statuses = [ 'pending', 'ok', 'upload_failed', 'too_big' ];
+?>
+<div class="wrap nc-wrap">
+<h1><?php printf( esc_html__( 'Item #%d', 'wp-news-collector' ), $id ); ?></h1>
+<p><a href="<?php echo esc_url( $back ); ?>" class="button">&laquo; <?php esc_html_e( 'Back to items', 'wp-news-collector' ); ?></a></p>
+
+<?php if ( 'media_saved' === $msg ) : ?>
+	<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Media saved successfully.', 'wp-news-collector' ); ?></p></div>
+<?php endif; ?>
+
+<!-- -----------------------------------------------------------------------
+     Metadata (readonly)
+--------------------------------------------------------------------- -->
+<table class="widefat" style="max-width:900px;margin-bottom:1.5rem">
+	<tbody>
+		<tr><th><?php esc_html_e( 'GUID', 'wp-news-collector' ); ?></th><td><code><?php echo esc_html( (string) $item['guid'] ); ?></code> — <a href="<?php echo esc_url( (string) $item['guid'] ); ?>" target="_blank" rel="noreferrer noopener">Telegram ↗</a></td></tr>
+		<tr><th><?php esc_html_e( 'Source', 'wp-news-collector' ); ?></th><td><?php echo esc_html( (string) $item['source_name'] ); ?> <em>(<?php echo esc_html( (string) $item['source'] ); ?>)</em></td></tr>
+		<tr><th><?php esc_html_e( 'Published', 'wp-news-collector' ); ?></th><td><?php echo esc_html( (string) $item['published_at'] ); ?></td></tr>
+		<tr><th><?php esc_html_e( 'Visible', 'wp-news-collector' ); ?></th><td><?php echo (int) $item['enabled'] === 1 ? esc_html__( 'Yes', 'wp-news-collector' ) : esc_html__( 'No', 'wp-news-collector' ); ?></td></tr>
+	</tbody>
+</table>
+
+<!-- -----------------------------------------------------------------------
+     Text
+--------------------------------------------------------------------- -->
+<h2><?php esc_html_e( 'Text', 'wp-news-collector' ); ?></h2>
+<div style="padding:12px;background:#fff;border:1px solid #ccd0d4;max-width:700px;margin-bottom:1.5rem">
+	<?php echo wp_kses( (string) ( $item['text'] ?? '' ), $allowed ); ?>
+</div>
+
+<!-- -----------------------------------------------------------------------
+     Editable media form
+--------------------------------------------------------------------- -->
+<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+	<?php wp_nonce_field( 'nc_item_media_save_' . $id ); ?>
+	<input type="hidden" name="action" value="nc_item_media_save" />
+	<input type="hidden" name="id" value="<?php echo $id; ?>" />
+
+	<!-- Images -->
+	<h2><?php esc_html_e( 'Images', 'wp-news-collector' ); ?></h2>
+	<div id="nc-images-wrap">
+		<?php foreach ( $images as $idx => $img_url ) : $img_url = (string) $img_url; ?>
+		<div class="nc-media-row" style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+			<?php if ( '' !== $img_url ) : ?>
+				<img src="<?php echo esc_url( $img_url ); ?>" style="width:48px;height:48px;object-fit:cover;border:1px solid #ccd0d4;flex-shrink:0" loading="lazy" />
+			<?php else : ?>
+				<span style="width:48px;height:48px;display:inline-block;background:#f0f0f1;flex-shrink:0"></span>
+			<?php endif; ?>
+			<input type="text" name="images[]" value="<?php echo esc_attr( $img_url ); ?>"
+				placeholder="https://files.catbox.moe/…"
+				style="flex:1;font-family:monospace;font-size:.85em" />
+			<button type="button" class="button nc-remove-row" title="<?php esc_attr_e( 'Remove', 'wp-news-collector' ); ?>">✕</button>
+		</div>
+		<?php endforeach; ?>
+	</div>
+	<p>
+		<button type="button" id="nc-add-image" class="button">
+			+ <?php esc_html_e( 'Add image', 'wp-news-collector' ); ?>
+		</button>
+	</p>
+
+	<!-- Videos -->
+	<h2 style="margin-top:1.5rem"><?php esc_html_e( 'Videos', 'wp-news-collector' ); ?></h2>
+	<div id="nc-videos-wrap">
+		<?php foreach ( $videos as $idx => $video ) : $video = (array) $video; ?>
+		<div class="nc-video-block" style="margin-bottom:1rem;padding:12px;background:#fff;border:1px solid #ccd0d4;max-width:700px">
+			<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+				<strong><?php printf( esc_html__( 'Video %d', 'wp-news-collector' ), (int) $idx + 1 ); ?></strong>
+				<button type="button" class="button nc-remove-row" title="<?php esc_attr_e( 'Remove video', 'wp-news-collector' ); ?>">✕ <?php esc_html_e( 'Remove', 'wp-news-collector' ); ?></button>
+			</div>
+
+			<?php if ( ! empty( $video['original_url'] ) ) : ?>
+			<p style="margin:0 0 8px;font-size:.85em;color:#666">
+				<?php esc_html_e( 'Original URL:', 'wp-news-collector' ); ?>
+				<a href="<?php echo esc_url( (string) $video['original_url'] ); ?>" target="_blank" rel="noreferrer noopener" style="font-family:monospace">
+					<?php echo esc_html( (string) $video['original_url'] ); ?>
+				</a>
+			</p>
+			<input type="hidden" name="videos[<?php echo (int) $idx; ?>][original_url]" value="<?php echo esc_attr( (string) $video['original_url'] ); ?>" />
+			<?php endif; ?>
+
+			<table class="form-table" style="margin:0">
+				<tr>
+					<th style="width:120px;padding:4px 0"><?php esc_html_e( 'Catbox URL', 'wp-news-collector' ); ?></th>
+					<td style="padding:4px 0">
+						<input type="text" name="videos[<?php echo (int) $idx; ?>][catbox_url]"
+							value="<?php echo esc_attr( (string) ( $video['catbox_url'] ?? '' ) ); ?>"
+							placeholder="https://files.catbox.moe/…"
+							style="width:100%;font-family:monospace;font-size:.85em" />
+					</td>
+				</tr>
+				<tr>
+					<th style="padding:4px 0"><?php esc_html_e( 'Poster URL', 'wp-news-collector' ); ?></th>
+					<td style="padding:4px 0;display:flex;align-items:center;gap:8px">
+						<?php $poster = (string) ( $video['poster_url'] ?? '' ); ?>
+						<?php if ( '' !== $poster ) : ?>
+							<img src="<?php echo esc_url( $poster ); ?>" style="width:48px;height:48px;object-fit:cover;border:1px solid #ccd0d4;flex-shrink:0" loading="lazy" />
+						<?php endif; ?>
+						<input type="text" name="videos[<?php echo (int) $idx; ?>][poster_url]"
+							value="<?php echo esc_attr( $poster ); ?>"
+							placeholder="https://files.catbox.moe/…"
+							style="flex:1;font-family:monospace;font-size:.85em" />
+					</td>
+				</tr>
+				<tr>
+					<th style="padding:4px 0"><?php esc_html_e( 'Status', 'wp-news-collector' ); ?></th>
+					<td style="padding:4px 0">
+						<select name="videos[<?php echo (int) $idx; ?>][status]">
+							<?php foreach ( $valid_statuses as $s ) : ?>
+								<option value="<?php echo esc_attr( $s ); ?>" <?php selected( (string) ( $video['status'] ?? 'pending' ), $s ); ?>>
+									<?php echo esc_html( $s ); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<?php endforeach; ?>
+	</div>
+	<p>
+		<button type="button" id="nc-add-video" class="button">
+			+ <?php esc_html_e( 'Add video', 'wp-news-collector' ); ?>
+		</button>
+	</p>
+
+	<p style="margin-top:1.5rem">
+		<?php submit_button( __( 'Save media', 'wp-news-collector' ), 'primary', 'submit', false ); ?>
+	</p>
+</form>
+
+<!-- -----------------------------------------------------------------------
+     Article (readonly)
+--------------------------------------------------------------------- -->
+<?php if ( $article ) : ?>
+<h2><?php esc_html_e( 'Article', 'wp-news-collector' ); ?></h2>
+<div style="padding:12px;background:#fff;border:1px solid #ccd0d4;max-width:700px;margin-bottom:1.5rem">
+	<?php if ( ! empty( $article['image_url'] ) ) : ?>
+		<img src="<?php echo esc_url( (string) $article['image_url'] ); ?>" style="max-width:100%;margin-bottom:8px;display:block" />
+	<?php endif; ?>
+	<p style="margin:0 0 4px;font-weight:700"><?php echo esc_html( (string) ( $article['title'] ?? '' ) ); ?></p>
+	<p style="margin:0 0 4px;color:#666;font-size:.85em"><?php echo esc_html( (string) ( $article['site_name'] ?? $article['url'] ?? '' ) ); ?></p>
+	<p style="margin:0"><?php echo esc_html( (string) ( $article['text'] ?? '' ) ); ?></p>
+</div>
+<?php endif; ?>
+
+<?php if ( ! empty( $item['youtube_ids'] ) ) : ?>
+<h2>YouTube</h2>
+<ul>
+	<?php foreach ( (array) $item['youtube_ids'] as $yt ) : ?>
+		<li><a href="https://www.youtube.com/watch?v=<?php echo esc_attr( (string) $yt ); ?>" target="_blank" rel="noreferrer noopener"><?php echo esc_html( (string) $yt ); ?></a></li>
+	<?php endforeach; ?>
+</ul>
+<?php endif; ?>
+
+<details style="margin-top:24px">
+	<summary><?php esc_html_e( 'Raw description', 'wp-news-collector' ); ?></summary>
+	<pre style="max-width:900px;white-space:pre-wrap;background:#fff;padding:12px;border:1px solid #ccd0d4"><?php echo esc_html( (string) $item['raw_description'] ); ?></pre>
+</details>
+
+</div><!-- .wrap -->
+
+<script>
+(function () {
+	var imgWrap   = document.getElementById('nc-images-wrap');
+	var vidWrap   = document.getElementById('nc-videos-wrap');
+	var vidCount  = <?php echo count( $videos ); ?>;
+	var statuses  = <?php echo wp_json_encode( $valid_statuses ); ?>;
+
+	// Remove any row/block
+	document.addEventListener('click', function (e) {
+		var btn = e.target.closest('.nc-remove-row');
+		if (!btn) return;
+		var row = btn.closest('.nc-media-row, .nc-video-block');
+		if (row) row.parentNode.removeChild(row);
+	});
+
+	// Add image row
+	document.getElementById('nc-add-image').addEventListener('click', function () {
+		var row = document.createElement('div');
+		row.className = 'nc-media-row';
+		row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px';
+		row.innerHTML =
+			'<span style="width:48px;height:48px;display:inline-block;background:#f0f0f1;flex-shrink:0"></span>' +
+			'<input type="text" name="images[]" placeholder="https://files.catbox.moe/…"' +
+			'  style="flex:1;font-family:monospace;font-size:.85em" />' +
+			'<button type="button" class="button nc-remove-row" title="Quitar">✕</button>';
+		imgWrap.appendChild(row);
+		row.querySelector('input').focus();
+	});
+
+	// Add video block
+	document.getElementById('nc-add-video').addEventListener('click', function () {
+		var idx = vidCount++;
+		var opts = statuses.map(function (s) {
+			return '<option value="' + s + '"' + (s === 'ok' ? ' selected' : '') + '>' + s + '</option>';
+		}).join('');
+		var block = document.createElement('div');
+		block.className = 'nc-video-block';
+		block.style.cssText = 'margin-bottom:1rem;padding:12px;background:#fff;border:1px solid #ccd0d4;max-width:700px';
+		block.innerHTML =
+			'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+			'  <strong>Vídeo nuevo</strong>' +
+			'  <button type="button" class="button nc-remove-row" title="Quitar vídeo">✕ Quitar</button>' +
+			'</div>' +
+			'<table class="form-table" style="margin:0">' +
+			'  <tr><th style="width:120px;padding:4px 0">Catbox URL</th>' +
+			'      <td style="padding:4px 0"><input type="text" name="videos[' + idx + '][catbox_url]"' +
+			'        placeholder="https://files.catbox.moe/…" style="width:100%;font-family:monospace;font-size:.85em" /></td></tr>' +
+			'  <tr><th style="padding:4px 0">Poster URL</th>' +
+			'      <td style="padding:4px 0"><input type="text" name="videos[' + idx + '][poster_url]"' +
+			'        placeholder="https://files.catbox.moe/…" style="width:100%;font-family:monospace;font-size:.85em" /></td></tr>' +
+			'  <tr><th style="padding:4px 0">Estado</th>' +
+			'      <td style="padding:4px 0"><select name="videos[' + idx + '][status]">' + opts + '</select></td></tr>' +
+			'</table>';
+		vidWrap.appendChild(block);
+		block.querySelector('input').focus();
+	});
+})();
+</script>
