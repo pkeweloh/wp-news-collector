@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Shared rendering helpers: port of alerta-boe NewsCard logic.
  *

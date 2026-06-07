@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Plugin Name: News Collector
  * Plugin URI:  https://github.com/pkeweloh/wp-news-collector

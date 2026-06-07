@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Settings page: Catbox / interval / max items.
  *

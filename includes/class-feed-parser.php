@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * RSS feed parser: faithful port of alerta-boe/app/news_parser.py.
  *

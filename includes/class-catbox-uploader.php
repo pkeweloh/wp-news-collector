@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Catbox (catbox.moe) uploader using the urlupload endpoint.
  *

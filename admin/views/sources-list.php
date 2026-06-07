@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Sources list view.
  *

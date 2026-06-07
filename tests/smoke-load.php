@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Smoke load: ensure every plugin class file parses + autoloads without
  * a real WordPress instance. Stubs the WP API surface used at load time.

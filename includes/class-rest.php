@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * REST endpoints for the public feed.
  *

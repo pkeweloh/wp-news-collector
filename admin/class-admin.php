@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Admin bootstrap: menus, asset enqueue, form handlers.
  *

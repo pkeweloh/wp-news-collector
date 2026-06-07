@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Daily reconciliation: track catbox uploads from nc_items and assign to monthly albums.
  * Port of alerta-boe/app/catbox_syncer.py.

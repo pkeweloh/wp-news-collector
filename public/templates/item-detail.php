@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Full item content (no theme chrome). Shared by the single-item page,
  * the REST endpoint and the in-page modal.

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Items list view.
  *

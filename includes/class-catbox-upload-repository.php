@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Repository for Catbox upload tracking (nc_catbox_uploads + nc_catbox_albums).
  *

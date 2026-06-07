@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Sources admin page: list, add, edit, delete.
  *

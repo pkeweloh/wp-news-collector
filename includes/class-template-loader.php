@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Template loader: theme override support.
  *

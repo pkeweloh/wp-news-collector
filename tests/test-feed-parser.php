@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Standalone parser test: runs without WordPress.
  * Usage: php tests/test-feed-parser.php

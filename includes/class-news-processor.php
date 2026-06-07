@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * News processing pipeline: orchestrates fetch / parse / enrich / save.
  *

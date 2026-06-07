@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * CRUD for the nc_sources table.
  *

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Server-side handler for /noticia/{id} canonical URLs.
  *

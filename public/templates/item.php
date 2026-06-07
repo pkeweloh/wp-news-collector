@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Single item template (rendered inside feed.php).
  *

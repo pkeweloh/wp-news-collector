@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Single item view: read + editable media form.
  *
