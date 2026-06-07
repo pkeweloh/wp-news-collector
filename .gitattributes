@@ -1,0 +1,3 @@
+# Keep dev-only files out of the distributed plugin zip (git archive).
+languages/compile_mo.py export-ignore
+.gitattributes export-ignore

@@ -72,6 +72,7 @@ class NC_Activator {
 			id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			month      VARCHAR(7)      NOT NULL DEFAULT '',
 			album_id   VARCHAR(32)     NOT NULL DEFAULT '',
+			name       VARCHAR(255)    NOT NULL DEFAULT '',
 			created_at DATETIME        NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY uk_month (month)

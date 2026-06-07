@@ -89,6 +89,15 @@ class NC_Plugin {
 		return add_query_arg( NC_Rewrite::QUERY_VAR, $id, home_url( '/' ) );
 	}
 
+	/**
+	 * Catbox monthly album name. Single source of truth shared by album
+	 * creation and the admin display, so the shown name always matches the
+	 * name used on Catbox: "<site title> - YYYY-MM".
+	 */
+	public static function catbox_album_name( string $month ): string {
+		return get_bloginfo( 'name' ) . ' - ' . $month;
+	}
+
 	public function register_widget(): void {
 		NC_Widget_Registry::set_items( $this->items );
 		register_widget( 'NC_News_Widget' );

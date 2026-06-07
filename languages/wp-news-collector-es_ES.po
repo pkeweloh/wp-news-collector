@@ -28,8 +28,14 @@ msgstr "Acción completada: %s"
 msgid "Actions"
 msgstr "Acciones"
 
+msgid "Active"
+msgstr "Activa"
+
 msgid "Add image"
 msgstr "Añadir imagen"
+
+msgid "Add new"
+msgstr "Añadir nueva"
 
 msgid "Add source"
 msgstr "Añadir fuente"
@@ -39,6 +45,9 @@ msgstr "Añadir vídeo"
 
 msgid "Album"
 msgstr "Álbum"
+
+msgid "Album ID"
+msgstr "ID del álbum"
 
 msgid "Albums"
 msgstr "Álbumes"
@@ -58,20 +67,26 @@ msgstr "Volver a ítems"
 msgid "Bulk actions"
 msgstr "Acciones en lote"
 
+msgid "Cancel"
+msgstr "Cancelar"
+
 msgid "Catbox URL"
 msgstr "URL de Catbox"
 
 msgid "Catbox backfill completed."
 msgstr "Backfill de Catbox completado."
 
-msgid "Catbox backfill queued — it will run on the next Action Scheduler tick."
-msgstr "Backfill de Catbox encolado — se ejecutará en el siguiente tick de Action Scheduler."
+msgid "Catbox backfill queued: it will run on the next Action Scheduler tick."
+msgstr "Backfill de Catbox encolado: se ejecutará en el siguiente tick de Action Scheduler."
 
 msgid "Catbox userhash"
 msgstr "Userhash de Catbox"
 
-msgid "Catbox — Albums & Sync"
-msgstr "Catbox — Álbumes y Sync"
+msgid "Catbox: Albums & Sync"
+msgstr "Catbox: Álbumes y Sync"
+
+msgid "Configure the Catbox userhash in Settings before managing albums."
+msgstr "Configura el userhash de Catbox en Ajustes antes de gestionar álbumes."
 
 msgid "Created"
 msgstr "Creado"
@@ -88,14 +103,23 @@ msgstr "¿Eliminar este ítem?"
 msgid "Delete this source?"
 msgstr "¿Eliminar esta fuente?"
 
+msgid "Disable"
+msgstr "Desactivar"
+
 msgid "Display name (optional)"
 msgstr "Nombre para mostrar (opcional)"
 
 msgid "Displays the latest news from the feed."
 msgstr "Muestra las últimas noticias del feed."
 
+msgid "Edit"
+msgstr "Editar"
+
 msgid "Edit source"
 msgstr "Editar fuente"
+
+msgid "Enable"
+msgstr "Activar"
 
 msgid "Enable Catbox uploads"
 msgstr "Activar subida a Catbox"
@@ -108,6 +132,9 @@ msgstr "Activo"
 
 msgid "Expand image"
 msgstr "Ampliar imagen"
+
+msgid "Fetch all sources now"
+msgstr "Actualizar todas las fuentes ahora"
 
 msgid "Fetch cycle completed (Action Scheduler not available)."
 msgstr "Ciclo completado (Action Scheduler no disponible)."
@@ -154,8 +181,14 @@ msgstr "Ítem no encontrado"
 msgid "Item not found."
 msgstr "Ítem no encontrado."
 
-msgid "Last sync: %1$s — %2$d tracked, %3$d assigned to album."
-msgstr "Último sync: %1$s — %2$d rastreados, %3$d asignados a álbum."
+msgid "Item permalink slug"
+msgstr "Slug del enlace permanente"
+
+msgid "Items"
+msgstr "Ítems"
+
+msgid "Last sync: %1$s: %2$d tracked, %3$d assigned to album."
+msgstr "Último sync: %1$s: %2$d rastreados, %3$d asignados a álbum."
 
 msgid "Latest news"
 msgstr "Últimas noticias"
@@ -178,14 +211,17 @@ msgstr "Álbumes mensuales"
 msgid "Muted"
 msgstr "Sin sonido"
 
-msgid "News Collector — Items"
-msgstr "News Collector — Ítems"
+msgid "Name"
+msgstr "Nombre"
 
-msgid "News Collector — Settings"
-msgstr "News Collector — Ajustes"
+msgid "News Collector: Items"
+msgstr "News Collector: Ítems"
 
-msgid "News Collector — Sources"
-msgstr "News Collector — Fuentes"
+msgid "News Collector: Settings"
+msgstr "News Collector: Ajustes"
+
+msgid "News Collector: Sources"
+msgstr "News Collector: Fuentes"
 
 msgid "News feed"
 msgstr "Listado de noticias"
@@ -265,6 +301,9 @@ msgstr "Guardar"
 msgid "Save media"
 msgstr "Guardar media"
 
+msgid "Settings"
+msgstr "Ajustes"
+
 msgid "Show"
 msgstr "Mostrar"
 
@@ -288,6 +327,12 @@ msgstr "Fuentes"
 
 msgid "Status"
 msgstr "Estado"
+
+msgid "Sync completed."
+msgstr "Sync ejecutado."
+
+msgid "Sync queued in Action Scheduler."
+msgstr "Sync encolado en Action Scheduler."
 
 msgid "Text"
 msgstr "Texto"
@@ -318,6 +363,9 @@ msgstr "La URL no se puede editar. Elimínala y vuelve a añadirla para cambiarl
 
 msgid "URL is required."
 msgstr "La URL es obligatoria."
+
+msgid "URL prefix for single item pages. Current: %s"
+msgstr "Prefijo de URL para las páginas de ítem individuales. Actual: %s"
 
 msgid "Upload all images and videos to catbox.moe for persistent hosting."
 msgstr "Sube todas las imágenes y vídeos a catbox.moe para alojamiento permanente."

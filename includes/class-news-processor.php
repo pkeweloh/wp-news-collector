@@ -58,8 +58,9 @@ class NC_News_Processor {
 		$album_id = $this->uploads->get_album_for_month( $month );
 		if ( '' === $album_id ) {
 			try {
-				$album_id = $this->catbox->create_album( 'News Collector - ' . $month );
-				$this->uploads->save_album_for_month( $month, $album_id );
+				$album_name = NC_Plugin::catbox_album_name( $month );
+				$album_id   = $this->catbox->create_album( $album_name );
+				$this->uploads->save_album_for_month( $month, $album_id, $album_name );
 			} catch ( NC_Catbox_Exception $e ) {
 				$stats['errors'][] = 'Album creation failed: ' . $e->getMessage();
 				return '';

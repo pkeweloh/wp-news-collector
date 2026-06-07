@@ -15,9 +15,9 @@
 defined( 'ABSPATH' ) || exit;
 
 $msg_map = [
-	'sync_queued'  => [ 'success', 'Sync encolado en Action Scheduler.' ],
-	'sync_ran'     => [ 'success', 'Sync ejecutado.' ],
-	'no_userhash'  => [ 'error',   'Configura el userhash de Catbox en Ajustes antes de gestionar álbumes.' ],
+	'sync_queued'  => [ 'success', __( 'Sync queued in Action Scheduler.', 'wp-news-collector' ) ],
+	'sync_ran'     => [ 'success', __( 'Sync completed.', 'wp-news-collector' ) ],
+	'no_userhash'  => [ 'error',   __( 'Configure the Catbox userhash in Settings before managing albums.', 'wp-news-collector' ) ],
 ];
 ?>
 <div class="wrap">
@@ -96,7 +96,8 @@ $msg_map = [
 	<thead>
 		<tr>
 			<th><?php esc_html_e( 'Month', 'wp-news-collector' ); ?></th>
-			<th><?php esc_html_e( 'Album ID', 'wp-news-collector' ); ?></th>
+			<th><?php esc_html_e( 'Name', 'wp-news-collector' ); ?></th>
+				<th><?php esc_html_e( 'Album ID', 'wp-news-collector' ); ?></th>
 			<th style="width:90px;text-align:right"><?php esc_html_e( 'Files', 'wp-news-collector' ); ?></th>
 			<th style="width:160px"><?php esc_html_e( 'Created', 'wp-news-collector' ); ?></th>
 		</tr>
@@ -105,6 +106,13 @@ $msg_map = [
 		<?php foreach ( $albums as $album ) : ?>
 		<tr>
 			<td><strong><?php echo esc_html( (string) $album['month'] ); ?></strong></td>
+			<td><?php
+				// Stored name; fall back to the computed name for legacy rows saved before the column existed.
+				$album_name = '' !== (string) ( $album['name'] ?? '' )
+					? (string) $album['name']
+					: NC_Plugin::catbox_album_name( (string) $album['month'] );
+				echo esc_html( $album_name );
+			?></td>
 			<td>
 				<a href="<?php echo esc_url( 'https://catbox.moe/c/' . $album['album_id'] ); ?>" target="_blank" rel="noreferrer noopener">
 					<?php echo esc_html( (string) $album['album_id'] ); ?>

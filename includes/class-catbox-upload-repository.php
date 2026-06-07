@@ -175,13 +175,14 @@ class NC_Catbox_Upload_Repository {
 	/**
 	 * Persist a new album for a month. Returns the album_id.
 	 */
-	public function save_album_for_month( string $month, string $album_id ): string {
+	public function save_album_for_month( string $month, string $album_id, string $name = '' ): string {
 		global $wpdb;
 		$wpdb->query(
 			$wpdb->prepare(
-				"INSERT IGNORE INTO {$this->albums_table} (month, album_id, created_at) VALUES (%s, %s, %s)",
+				"INSERT IGNORE INTO {$this->albums_table} (month, album_id, name, created_at) VALUES (%s, %s, %s, %s)",
 				$month,
 				$album_id,
+				$name,
 				gmdate( 'Y-m-d H:i:s' )
 			)
 		);
@@ -197,11 +198,11 @@ class NC_Catbox_Upload_Repository {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows = $wpdb->get_results(
-			"SELECT a.month, a.album_id, a.created_at,
+			"SELECT a.month, a.album_id, a.name, a.created_at,
 			        COUNT(u.id) AS file_count
 			 FROM {$this->albums_table} a
 			 LEFT JOIN {$this->uploads_table} u ON u.album_id = a.album_id
-			 GROUP BY a.id, a.month, a.album_id, a.created_at
+			 GROUP BY a.id, a.month, a.album_id, a.name, a.created_at
 			 ORDER BY a.month DESC",
 			ARRAY_A
 		);
