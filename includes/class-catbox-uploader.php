@@ -34,6 +34,12 @@ class NC_Catbox_Uploader {
 
 		[ $bytes, $suffix ] = $this->download( $url );
 
+		// wp_tempnam() lives in wp-admin/includes/file.php, which is not loaded
+		// during WP Cron / Action Scheduler runs. Pull it in on demand.
+		if ( ! function_exists( 'wp_tempnam' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+
 		$tmp = wp_tempnam( 'nc_catbox_' . $suffix );
 		if ( ! $tmp ) {
 			throw new NC_Catbox_Exception( 'Cannot create temp file' );
