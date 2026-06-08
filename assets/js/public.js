@@ -356,23 +356,35 @@
 	// -------------------------------------------------------------------------
 	var FeedPager = {
 		loading: false,
-		page: NC_DATA.page || 1,
-		hasNext: NC_DATA.hasNext || false,
-		pageSize: NC_DATA.pageSize || 20,
+		// wp_localize_script serializes everything as strings, so coerce the
+		// numerics — otherwise "1" + 1 === "11" and we'd request a bogus page.
+		page: parseInt(NC_DATA.page, 10) || 1,
+		hasNext: !!NC_DATA.hasNext,
+		pageSize: parseInt(NC_DATA.pageSize, 10) || 20,
 		source: NC_DATA.source || '',
 
 		init: function () {
 			if (!this.hasNext) return;
-			var sentinel = document.querySelector('.nc-feed-sentinel');
-			if (!sentinel) return;
 			var self = this;
-			var observer = new IntersectionObserver(
-				function (entries) { if (entries[0].isIntersecting) self.loadMore(); },
-				{ rootMargin: '300px' }
-			);
-			observer.observe(sentinel);
-			this._sentinel = sentinel;
-			this._observer = observer;
+
+			// Fallback "Load more" button: works even if IntersectionObserver
+			// never fires (e.g. feed inside a scrollable container).
+			this._button = document.querySelector('.nc-feed-load-more');
+			if (this._button) {
+				this._button.addEventListener('click', function () { self.loadMore(); });
+			}
+
+			// Insertion target is the sentinel; keep a reference regardless of
+			// whether the observer is available (the button path needs it too).
+			this._sentinel = document.querySelector('.nc-feed-sentinel');
+			if (this._sentinel && 'IntersectionObserver' in window) {
+				var observer = new IntersectionObserver(
+					function (entries) { if (entries[0].isIntersecting) self.loadMore(); },
+					{ rootMargin: '300px' }
+				);
+				observer.observe(this._sentinel);
+				this._observer = observer;
+			}
 		},
 
 		loadMore: function () {
@@ -396,16 +408,23 @@
 					self.hasNext = data.has_next;
 					if (data.items_html) {
 						var feed = document.querySelector('.nc-feed');
-						if (feed && self._sentinel) {
+						if (feed) {
 							var tmp = document.createElement('div');
 							tmp.innerHTML = data.items_html;
 							initAllInlineVideos(tmp);
-							while (tmp.firstChild) feed.insertBefore(tmp.firstChild, self._sentinel);
+							// Insert before the sentinel when present, else append.
+							while (tmp.firstChild) {
+								feed.insertBefore(tmp.firstChild, self._sentinel || null);
+							}
 						}
 					}
-					if (!self.hasNext && self._sentinel) {
-						self._observer.disconnect();
-						self._sentinel.parentNode.removeChild(self._sentinel);
+					if (!self.hasNext) {
+						self._teardown();
+					} else if (self._observer && self._sentinel) {
+						// Re-arm the observer in case the sentinel is still in view
+						// (no fresh intersection callback fires otherwise).
+						self._observer.unobserve(self._sentinel);
+						self._observer.observe(self._sentinel);
 					}
 				})
 				.catch(function () { /* silently stop on error */ self.hasNext = false; })
@@ -415,9 +434,23 @@
 				});
 		},
 
+		_teardown: function () {
+			if (this._observer) this._observer.disconnect();
+			if (this._sentinel && this._sentinel.parentNode) {
+				this._sentinel.parentNode.removeChild(this._sentinel);
+			}
+			if (this._button && this._button.parentNode) {
+				this._button.parentNode.removeChild(this._button);
+			}
+		},
+
 		_setLoadingVisible: function (visible) {
 			var el = document.querySelector('.nc-feed-loading');
 			if (el) el.style.display = visible ? '' : 'none';
+			if (this._button) {
+				this._button.disabled = visible;
+				this._button.style.display = visible ? 'none' : '';
+			}
 		}
 	};
 

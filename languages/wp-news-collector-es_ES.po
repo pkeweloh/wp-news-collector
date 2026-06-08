@@ -193,6 +193,9 @@ msgstr "Último sync: %1$s: %2$d rastreados, %3$d asignados a álbum."
 msgid "Latest news"
 msgstr "Últimas noticias"
 
+msgid "Load more"
+msgstr "Cargar más"
+
 msgid "Loading…"
 msgstr "Cargando…"
 

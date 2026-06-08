@@ -24,6 +24,7 @@ defined( 'ABSPATH' ) || exit;
 		<?php if ( $has_next ) : ?>
 		<div class="nc-feed-sentinel" aria-hidden="true"></div>
 		<p class="nc-feed-loading" style="display:none"><?php esc_html_e( 'Loading…', 'wp-news-collector' ); ?></p>
+		<button type="button" class="nc-feed-load-more"><?php esc_html_e( 'Load more', 'wp-news-collector' ); ?></button>
 		<?php endif; ?>
 	<?php endif; ?>
 </section>

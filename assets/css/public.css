@@ -518,6 +518,21 @@ button.nc-media-cell:hover .nc-media-cell__thumb { transform: scale(1.03); }
 	font-size: 0.9em;
 	padding: 16px 0;
 }
+.nc-feed-load-more {
+	display: block;
+	margin: 16px auto 0;
+	padding: 10px 24px;
+	font: inherit;
+	font-weight: 600;
+	color: var(--nc-text, #1a1a1a);
+	background: var(--nc-surface, #fff);
+	border: 1px solid var(--nc-border, #dcdcdc);
+	border-radius: 999px;
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease;
+}
+.nc-feed-load-more:hover { background: rgba(0, 0, 0, 0.04); }
+.nc-feed-load-more:disabled { opacity: 0.6; cursor: default; }
 
 @media (max-width: 768px) {
 	.nc-feed-sidebar { position: static; }
