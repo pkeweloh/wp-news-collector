@@ -146,6 +146,13 @@ class NC_Items_Page {
 		$table = new NC_Items_Table( $page['items'], $vf, $paged );
 		$table->prepare_items();
 
+		$filter_counts = [
+			'all'           => $this->items->count_admin( 'all' ),
+			'too_big'       => $this->items->count_admin( 'too_big' ),
+			'upload_failed' => $this->items->count_admin( 'upload_failed' ),
+			'hidden'        => $this->items->count_admin( 'hidden' ),
+		];
+
 		$msg = isset( $_GET['nc_msg'] ) ? sanitize_key( (string) $_GET['nc_msg'] ) : '';
 		include NC_PLUGIN_DIR . 'admin/views/items-list.php';
 	}

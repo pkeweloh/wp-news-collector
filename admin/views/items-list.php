@@ -8,6 +8,7 @@
  * @var string $vf
  * @var int $paged
  * @var string $msg
+ * @var array<string, int> $filter_counts
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -20,7 +21,7 @@ $filters = [
 ];
 ?>
 <div class="wrap nc-wrap">
-	<h1 class="wp-heading-inline"><?php esc_html_e( 'News Collector: Items', 'wp-news-collector' ); ?></h1>
+	<h1><?php esc_html_e( 'News Collector: Items', 'wp-news-collector' ); ?></h1>
 
 	<?php if ( '' !== $msg ) : ?>
 		<div class="notice notice-success is-dismissible"><p><?php
@@ -28,17 +29,25 @@ $filters = [
 		?></p></div>
 	<?php endif; ?>
 
-	<form method="get" style="margin:12px 0">
-		<input type="hidden" name="page" value="nc_items" />
-		<label><?php esc_html_e( 'Filter', 'wp-news-collector' ); ?>
-			<select name="vf">
-				<?php foreach ( $filters as $key => $label ) : ?>
-					<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $vf, $key ); ?>><?php echo esc_html( $label ); ?></option>
-				<?php endforeach; ?>
-			</select>
-		</label>
-		<?php submit_button( __( 'Apply', 'wp-news-collector' ), 'secondary', 'submit', false ); ?>
-	</form>
+	<ul class="subsubsub">
+		<?php
+		$base_url = add_query_arg( [ 'page' => 'nc_items' ], admin_url( 'admin.php' ) );
+		$f_links  = [];
+		foreach ( $filters as $key => $label ) {
+			$class     = $key === $vf ? 'current' : '';
+			$count     = (int) ( $filter_counts[ $key ] ?? 0 );
+			$f_links[] = sprintf(
+				'<li><a href="%s" class="%s">%s <span class="count">(%d)</span></a></li>',
+				esc_url( add_query_arg( 'vf', $key, $base_url ) ),
+				esc_attr( $class ),
+				esc_html( $label ),
+				$count
+			);
+		}
+		echo implode( ' | ', $f_links ); // phpcs:ignore WordPress.Security.EscapeOutput
+		?>
+	</ul>
+	<br class="clear" />
 
 	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 		<input type="hidden" name="action" value="nc_items_bulk" />

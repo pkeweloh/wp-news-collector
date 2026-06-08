@@ -220,6 +220,16 @@ class NC_Item_Repository {
 	 * @return array<string, mixed>
 	 */
 	public function get_page_admin( int $page, int $page_size, string $video_filter = 'all' ): array {
+		[ $conditions, $params ] = $this->admin_filter_clause( $video_filter );
+		return $this->fetch_page( $page, $page_size, $conditions, $params );
+	}
+
+	/**
+	 * Build the WHERE conditions + params for an admin filter key.
+	 *
+	 * @return array{0: string[], 1: array<int, mixed>}
+	 */
+	private function admin_filter_clause( string $video_filter ): array {
 		$conditions = [];
 		$params     = [];
 		switch ( $video_filter ) {
@@ -238,7 +248,22 @@ class NC_Item_Repository {
 			default:
 				break;
 		}
-		return $this->fetch_page( $page, $page_size, $conditions, $params );
+		return [ $conditions, $params ];
+	}
+
+	/**
+	 * Count items matching an admin filter key, for the filter links.
+	 */
+	public function count_admin( string $video_filter = 'all' ): int {
+		global $wpdb;
+		[ $conditions, $params ] = $this->admin_filter_clause( $video_filter );
+		$where = empty( $conditions ) ? '' : ( 'WHERE ' . implode( ' AND ', $conditions ) );
+		if ( empty( $params ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$this->table} {$where}" );
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$this->table} {$where}", ...$params ) );
 	}
 
 	/**
