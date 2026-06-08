@@ -381,8 +381,11 @@
 			this._setLoadingVisible(true);
 
 			var self = this;
-			var url = NC_DATA.feedUrl
-				+ '?page=' + encodeURIComponent(this.page + 1)
+			// feedUrl may already carry a query string (plain permalinks yield
+			// ".../?rest_route=/nc/v1/feed"), so pick the right separator.
+			var sep = NC_DATA.feedUrl.indexOf('?') === -1 ? '?' : '&';
+			var url = NC_DATA.feedUrl + sep
+				+ 'page=' + encodeURIComponent(this.page + 1)
 				+ '&page_size=' + encodeURIComponent(this.pageSize)
 				+ (this.source ? '&source=' + encodeURIComponent(this.source) : '');
 
