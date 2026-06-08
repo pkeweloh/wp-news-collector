@@ -90,7 +90,7 @@ class NC_Catbox_Syncer {
 				try {
 					$album_name = NC_Plugin::catbox_album_name( $month );
 					$album_id   = $this->catbox->create_album( $album_name );
-					$this->uploads->save_album_for_month( $month, $album_id, $album_name );
+					$this->uploads->save_album_for_month( $month, $album_id );
 				} catch ( NC_Catbox_Exception $e ) {
 					$stats['errors'][] = sprintf( 'Album creation failed (%s): %s', $month, $e->getMessage() );
 					continue;

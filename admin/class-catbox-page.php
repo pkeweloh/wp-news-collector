@@ -24,6 +24,7 @@ class NC_Catbox_Page {
 		$uploads_page_num = isset( $_GET['upaged'] ) ? max( 1, (int) $_GET['upaged'] ) : 1;
 		$uploads_filter   = isset( $_GET['uf'] ) ? sanitize_key( (string) $_GET['uf'] ) : 'all';
 		$uploads_data     = $this->uploads->get_page( $uploads_page_num, 30, $uploads_filter );
+		$album_month_map  = $this->uploads->get_album_month_map();
 
 		include NC_PLUGIN_DIR . 'admin/views/catbox.php';
 	}

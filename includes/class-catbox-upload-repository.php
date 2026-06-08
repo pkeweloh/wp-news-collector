@@ -174,15 +174,15 @@ class NC_Catbox_Upload_Repository {
 
 	/**
 	 * Persist a new album for a month. Returns the album_id.
+	 * The display name is derived from the month, so it is not stored.
 	 */
-	public function save_album_for_month( string $month, string $album_id, string $name = '' ): string {
+	public function save_album_for_month( string $month, string $album_id ): string {
 		global $wpdb;
 		$wpdb->query(
 			$wpdb->prepare(
-				"INSERT IGNORE INTO {$this->albums_table} (month, album_id, name, created_at) VALUES (%s, %s, %s, %s)",
+				"INSERT IGNORE INTO {$this->albums_table} (month, album_id, created_at) VALUES (%s, %s, %s)",
 				$month,
 				$album_id,
-				$name,
 				gmdate( 'Y-m-d H:i:s' )
 			)
 		);
@@ -198,15 +198,35 @@ class NC_Catbox_Upload_Repository {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows = $wpdb->get_results(
-			"SELECT a.month, a.album_id, a.name, a.created_at,
+			"SELECT a.month, a.album_id, a.created_at,
 			        COUNT(u.id) AS file_count
 			 FROM {$this->albums_table} a
 			 LEFT JOIN {$this->uploads_table} u ON u.album_id = a.album_id
-			 GROUP BY a.id, a.month, a.album_id, a.name, a.created_at
+			 GROUP BY a.id, a.month, a.album_id, a.created_at
 			 ORDER BY a.month DESC",
 			ARRAY_A
 		);
 		return is_array( $rows ) ? $rows : [];
+	}
+
+	/**
+	 * Map of album_id => month, so callers can derive an album's display
+	 * name from its month (see NC_Plugin::catbox_album_name).
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_album_month_map(): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results(
+			"SELECT album_id, month FROM {$this->albums_table}",
+			ARRAY_A
+		);
+		$map = [];
+		foreach ( (array) $rows as $row ) {
+			$map[ (string) $row['album_id'] ] = (string) $row['month'];
+		}
+		return $map;
 	}
 
 	/**

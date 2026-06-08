@@ -10,6 +10,7 @@
  * @var string                           $msg
  * @var array<string, mixed>             $uploads_data
  * @var string                           $uploads_filter
+ * @var array<string, string>            $album_month_map
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -106,13 +107,7 @@ $msg_map = [
 		<?php foreach ( $albums as $album ) : ?>
 		<tr>
 			<td><strong><?php echo esc_html( (string) $album['month'] ); ?></strong></td>
-			<td><?php
-				// Stored name; fall back to the computed name for legacy rows saved before the column existed.
-				$album_name = '' !== (string) ( $album['name'] ?? '' )
-					? (string) $album['name']
-					: NC_Plugin::catbox_album_name( (string) $album['month'] );
-				echo esc_html( $album_name );
-			?></td>
+			<td><?php echo esc_html( NC_Plugin::catbox_album_name( (string) $album['month'] ) ); ?></td>
 			<td>
 				<a href="<?php echo esc_url( 'https://catbox.moe/c/' . $album['album_id'] ); ?>" target="_blank" rel="noreferrer noopener">
 					<?php echo esc_html( (string) $album['album_id'] ); ?>
@@ -177,8 +172,15 @@ $msg_map = [
 			<td><?php echo esc_html( (string) ( $upload['source_name'] ?: $upload['source'] ) ); ?></td>
 			<td>
 				<?php if ( ! empty( $upload['album_id'] ) ) : ?>
-					<a href="<?php echo esc_url( 'https://catbox.moe/c/' . $upload['album_id'] ); ?>" target="_blank" rel="noreferrer noopener">
-						<?php echo esc_html( (string) $upload['album_id'] ); ?>
+					<?php
+					$up_album_id = (string) $upload['album_id'];
+					$up_month    = $album_month_map[ $up_album_id ] ?? '';
+					$up_label    = '' !== $up_month
+						? NC_Plugin::catbox_album_name( $up_month )
+						: $up_album_id;
+					?>
+					<a href="<?php echo esc_url( 'https://catbox.moe/c/' . $up_album_id ); ?>" target="_blank" rel="noreferrer noopener">
+						<?php echo esc_html( $up_label ); ?>
 					</a>
 				<?php else : ?>
 					<span style="color:#888">—</span>
