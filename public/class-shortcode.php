@@ -76,12 +76,12 @@ class NC_Shortcode {
 		$atts  = shortcode_atts( [ 'title' => __( 'Sources', 'wp-news-collector' ) ], is_array( $atts ) ? $atts : [], 'news_sources' );
 		$title = sanitize_text_field( (string) $atts['title'] );
 
-		// Derive unique sources from the most recent items (same logic as old sidebar).
-		$page    = $this->items->get_page( 1, 100 );
+		// List the configured sources in a fixed order (by id, ASC), independent
+		// of feed activity, so the panel never reshuffles as items come in.
 		$sources = [];
-		foreach ( $page['items'] as $item ) {
-			$name   = (string) ( $item['source_name'] ?? $item['source'] ?? '' );
-			$handle = (string) ( $item['source'] ?? '' );
+		foreach ( ( new NC_Source_Repository() )->get_active() as $row ) {
+			$handle = NC_Feed_Parser::source_from_url( (string) $row['url'] );
+			$name   = '' !== (string) $row['name'] ? (string) $row['name'] : $handle;
 			if ( '' !== $name && ! isset( $sources[ $name ] ) ) {
 				$sources[ $name ] = $handle;
 			}
