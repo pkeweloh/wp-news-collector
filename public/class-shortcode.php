@@ -57,6 +57,12 @@ class NC_Shortcode {
 				'page'       => 1,
 				'pageSize'   => $limit,
 				'source'     => $source,
+				'i18n'       => [
+					'loading'    => __( 'Loading…', 'wp-news-collector' ),
+					'loadMore'   => __( 'Load more', 'wp-news-collector' ),
+					'noNews'     => __( 'No news', 'wp-news-collector' ),
+					'noNewsBody' => __( 'No news yet. Check back soon.', 'wp-news-collector' ),
+				],
 			]
 		);
 
@@ -92,6 +98,10 @@ class NC_Shortcode {
 		}
 
 		wp_enqueue_style( 'nc-public', NC_PLUGIN_URL . 'assets/css/public.css', [], NC_VERSION );
+		// The script upgrades this panel into a multi-select feed filter when a
+		// [news_feed] is present on the same page; otherwise the rows stay inert
+		// text references (progressive enhancement, see SourceFilter in public.js).
+		wp_enqueue_script( 'nc-public', NC_PLUGIN_URL . 'assets/js/public.js', [], NC_VERSION, true );
 
 		ob_start();
 		?>
@@ -99,26 +109,25 @@ class NC_Shortcode {
 			<?php if ( '' !== $title ) : ?>
 				<h2 class="nc-feed-sidebar__title"><?php echo esc_html( $title ); ?></h2>
 			<?php endif; ?>
-			<ul class="nc-feed-source-list">
+			<ul class="nc-feed-source-list" data-nc-filterable="1">
 				<?php foreach ( $sources as $name => $handle ) : ?>
-				<li class="nc-feed-source-item">
-					<span class="nc-feed-source-dot"></span>
-					<div class="nc-feed-source-body">
-						<span class="nc-feed-source-name"><?php echo esc_html( $name ); ?></span>
-						<?php if ( '' !== $handle ) : ?>
-						<a class="nc-feed-source-tg"
-							href="https://t.me/<?php echo esc_attr( $handle ); ?>"
-							target="_blank"
-							rel="noreferrer noopener"
-							aria-label="<?php printf( esc_attr__( 'View %s on Telegram', 'wp-news-collector' ), esc_html( $name ) ); ?>">
-							<?php echo NC_Template_Helpers::telegram_svg(); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-							<?php esc_html_e( 'Follow on Telegram', 'wp-news-collector' ); ?>
-						</a>
-						<?php endif; ?>
-					</div>
+				<li class="nc-feed-source-item"<?php echo '' !== $handle ? ' data-nc-source="' . esc_attr( $handle ) . '"' : ''; ?>>
+					<span class="nc-feed-source-dot" aria-hidden="true"></span>
+					<span class="nc-feed-source-name"><?php echo esc_html( $name ); ?></span>
+					<?php if ( '' !== $handle ) : ?>
+					<a class="nc-feed-source-tg"
+						href="https://t.me/<?php echo esc_attr( $handle ); ?>"
+						target="_blank"
+						rel="noreferrer noopener"
+						title="<?php printf( esc_attr__( 'View %s on Telegram', 'wp-news-collector' ), esc_attr( $name ) ); ?>"
+						aria-label="<?php printf( esc_attr__( 'View %s on Telegram', 'wp-news-collector' ), esc_attr( $name ) ); ?>">
+						<?php echo NC_Template_Helpers::telegram_svg(); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+					</a>
+					<?php endif; ?>
 				</li>
 				<?php endforeach; ?>
 			</ul>
+			<button type="button" class="nc-feed-source-clear" hidden><?php esc_html_e( 'Clear filters', 'wp-news-collector' ); ?></button>
 		</div>
 		<?php
 		return (string) ob_get_clean();

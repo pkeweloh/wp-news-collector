@@ -362,9 +362,19 @@
 		hasNext: !!NC_DATA.hasNext,
 		pageSize: parseInt(NC_DATA.pageSize, 10) || 20,
 		source: NC_DATA.source || '',
+		// The shortcode's own source restriction; clearing all filters returns
+		// here (usually '' = all sources).
+		baseSource: NC_DATA.source || '',
+		_pendingSource: null,
 
 		init: function () {
-			if (!this.hasNext) return;
+			this._feed = document.querySelector('.nc-feed');
+			if (this._feed && this.hasNext) this._arm();
+		},
+
+		// (Re)bind the IntersectionObserver + "Load more" button to whatever
+		// sentinel/button currently live in the DOM. Safe to call after a rebuild.
+		_arm: function () {
 			var self = this;
 
 			// Fallback "Load more" button: works even if IntersectionObserver
@@ -387,27 +397,30 @@
 			}
 		},
 
+		// feedUrl may already carry a query string (plain permalinks yield
+		// ".../?rest_route=/nc/v1/feed"), so pick the right separator.
+		_fetch: function (page) {
+			var sep = NC_DATA.feedUrl.indexOf('?') === -1 ? '?' : '&';
+			var url = NC_DATA.feedUrl + sep
+				+ 'page=' + encodeURIComponent(page)
+				+ '&page_size=' + encodeURIComponent(this.pageSize)
+				+ (this.source ? '&source=' + encodeURIComponent(this.source) : '');
+			return fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+				.then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+		},
+
 		loadMore: function () {
 			if (this.loading || !this.hasNext) return;
 			this.loading = true;
 			this._setLoadingVisible(true);
 
 			var self = this;
-			// feedUrl may already carry a query string (plain permalinks yield
-			// ".../?rest_route=/nc/v1/feed"), so pick the right separator.
-			var sep = NC_DATA.feedUrl.indexOf('?') === -1 ? '?' : '&';
-			var url = NC_DATA.feedUrl + sep
-				+ 'page=' + encodeURIComponent(this.page + 1)
-				+ '&page_size=' + encodeURIComponent(this.pageSize)
-				+ (this.source ? '&source=' + encodeURIComponent(this.source) : '');
-
-			fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
-				.then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+			this._fetch(this.page + 1)
 				.then(function (data) {
 					self.page = data.page;
 					self.hasNext = data.has_next;
 					if (data.items_html) {
-						var feed = document.querySelector('.nc-feed');
+						var feed = self._feed || document.querySelector('.nc-feed');
 						if (feed) {
 							var tmp = document.createElement('div');
 							tmp.innerHTML = data.items_html;
@@ -431,7 +444,102 @@
 				.finally(function () {
 					self.loading = false;
 					self._setLoadingVisible(false);
+					self._drainPending();
 				});
+		},
+
+		// Replace the feed with a fresh page 1 for the given source handles
+		// (multi-select, comma-joined). Empty list falls back to baseSource.
+		// Rapid toggles while a request is in flight are coalesced.
+		applyFilter: function (sources) {
+			var feed = this._feed || document.querySelector('.nc-feed');
+			if (!feed) return;
+			this._feed = feed;
+			this._pendingSource = (sources && sources.length) ? sources.join(',') : this.baseSource;
+			if (this.loading) return; // picked up by _drainPending()
+			this._runFilter();
+		},
+
+		_drainPending: function () {
+			if (this._pendingSource !== null && this._pendingSource !== this.source) {
+				this._runFilter();
+			}
+		},
+
+		_runFilter: function () {
+			var feed = this._feed;
+			if (!feed) return;
+			this.source = this._pendingSource;
+			this.loading = true;
+			this._detach();
+			feed.setAttribute('aria-busy', 'true');
+
+			var self = this;
+			this._fetch(1)
+				.then(function (data) {
+					self.page = data.page || 1;
+					self.hasNext = !!data.has_next;
+					self._clear(feed);
+					if (data.items_html) {
+						var tmp = document.createElement('div');
+						tmp.innerHTML = data.items_html;
+						initAllInlineVideos(tmp);
+						while (tmp.firstChild) feed.appendChild(tmp.firstChild);
+						if (self.hasNext) {
+							self._appendTrailing(feed);
+							self._arm();
+						}
+					} else {
+						self.hasNext = false;
+						feed.appendChild(self._emptyState());
+					}
+				})
+				.catch(function () { self.hasNext = false; })
+				.finally(function () {
+					self.loading = false;
+					feed.removeAttribute('aria-busy');
+					self._drainPending();
+				});
+		},
+
+		// Drop observer/button references ahead of a full rebuild (the nodes
+		// themselves are removed by _clear()).
+		_detach: function () {
+			if (this._observer) { this._observer.disconnect(); this._observer = null; }
+			this._button = null;
+			this._sentinel = null;
+		},
+
+		_clear: function (feed) {
+			var nodes = feed.querySelectorAll('.nc-item, .nc-feed-empty, .nc-feed-sentinel, .nc-feed-loading, .nc-feed-load-more');
+			for (var i = 0; i < nodes.length; i++) {
+				if (nodes[i].parentNode) nodes[i].parentNode.removeChild(nodes[i]);
+			}
+		},
+
+		_appendTrailing: function (feed) {
+			var i18n = NC_DATA.i18n || {};
+			var sentinel = el('div', 'nc-feed-sentinel', { 'aria-hidden': 'true' });
+			var loading = el('p', 'nc-feed-loading');
+			loading.style.display = 'none';
+			loading.textContent = i18n.loading || 'Loading…';
+			var button = el('button', 'nc-feed-load-more', { type: 'button' });
+			button.textContent = i18n.loadMore || 'Load more';
+			feed.appendChild(sentinel);
+			feed.appendChild(loading);
+			feed.appendChild(button);
+		},
+
+		_emptyState: function () {
+			var i18n = NC_DATA.i18n || {};
+			var article = el('article', 'nc-feed-empty');
+			var h2 = document.createElement('h2');
+			h2.textContent = i18n.noNews || 'No news';
+			var p = document.createElement('p');
+			p.textContent = i18n.noNewsBody || '';
+			article.appendChild(h2);
+			article.appendChild(p);
+			return article;
 		},
 
 		_teardown: function () {
@@ -445,12 +553,85 @@
 		},
 
 		_setLoadingVisible: function (visible) {
-			var el = document.querySelector('.nc-feed-loading');
-			if (el) el.style.display = visible ? '' : 'none';
+			var loadingEl = document.querySelector('.nc-feed-loading');
+			if (loadingEl) loadingEl.style.display = visible ? '' : 'none';
 			if (this._button) {
 				this._button.disabled = visible;
 				this._button.style.display = visible ? 'none' : '';
 			}
+		}
+	};
+
+	// -------------------------------------------------------------------------
+	// SourceFilter — upgrades the [news_sources] panel into a multi-select feed
+	// filter. Progressive enhancement: only activates when a .nc-feed exists on
+	// the page; otherwise the rows stay inert text references.
+	// -------------------------------------------------------------------------
+	var SourceFilter = {
+		active: {},
+
+		init: function () {
+			if (!document.querySelector('.nc-feed')) return;
+			var list = document.querySelector('.nc-feed-source-list[data-nc-filterable]');
+			if (!list) return;
+			var rows = list.querySelectorAll('.nc-feed-source-item[data-nc-source]');
+			if (!rows.length) return;
+
+			list.classList.add('is-interactive');
+			var self = this;
+			this._rows = rows;
+
+			Array.prototype.forEach.call(rows, function (row) {
+				row.setAttribute('role', 'button');
+				row.setAttribute('tabindex', '0');
+				row.setAttribute('aria-pressed', 'false');
+				row.addEventListener('click', function (e) {
+					// Let the Telegram link work without toggling the filter.
+					if (e.target.closest && e.target.closest('.nc-feed-source-tg')) return;
+					self.toggle(row);
+				});
+				row.addEventListener('keydown', function (e) {
+					if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+						e.preventDefault();
+						self.toggle(row);
+					}
+				});
+			});
+
+			this._clearBtn = document.querySelector('.nc-feed-source-clear');
+			if (this._clearBtn) {
+				this._clearBtn.addEventListener('click', function () { self.clear(); });
+			}
+		},
+
+		toggle: function (row) {
+			var handle = row.getAttribute('data-nc-source');
+			if (!handle) return;
+			if (this.active[handle]) {
+				delete this.active[handle];
+				row.setAttribute('aria-pressed', 'false');
+				row.classList.remove('is-active');
+			} else {
+				this.active[handle] = true;
+				row.setAttribute('aria-pressed', 'true');
+				row.classList.add('is-active');
+			}
+			this._apply();
+		},
+
+		clear: function () {
+			this.active = {};
+			Array.prototype.forEach.call(this._rows || [], function (row) {
+				row.setAttribute('aria-pressed', 'false');
+				row.classList.remove('is-active');
+			});
+			this._apply();
+		},
+
+		_apply: function () {
+			var handles = Object.keys(this.active);
+			if (this._clearBtn) this._clearBtn.hidden = handles.length === 0;
+			FeedPager.applyFilter(handles);
 		}
 	};
 
@@ -484,6 +665,7 @@
 		document.addEventListener('click', onDocumentClick);
 		window.addEventListener('popstate', onPopState);
 		FeedPager.init();
+		SourceFilter.init();
 		initAllInlineVideos();
 	}
 

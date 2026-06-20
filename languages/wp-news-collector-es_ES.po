@@ -85,6 +85,9 @@ msgstr "Userhash de Catbox"
 msgid "Catbox: Albums & Sync"
 msgstr "Catbox: Álbumes y Sync"
 
+msgid "Clear filters"
+msgstr "Limpiar filtros"
+
 msgid "Configure the Catbox userhash in Settings before managing albums."
 msgstr "Configura el userhash de Catbox en Ajustes antes de gestionar álbumes."
 
