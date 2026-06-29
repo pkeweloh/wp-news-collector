@@ -11,14 +11,18 @@
  * @var array<string, mixed>             $uploads_data
  * @var string                           $uploads_filter
  * @var array<string, string>            $album_month_map
+ * @var array<int, array<string, mixed>> $covers
  */
 
 defined( 'ABSPATH' ) || exit;
 
 $msg_map = [
-	'sync_queued'  => [ 'success', __( 'Sync queued in Action Scheduler.', 'wp-news-collector' ) ],
-	'sync_ran'     => [ 'success', __( 'Sync completed.', 'wp-news-collector' ) ],
-	'no_userhash'  => [ 'error',   __( 'Configure the Catbox userhash in Settings before managing albums.', 'wp-news-collector' ) ],
+	'sync_queued'     => [ 'success', __( 'Sync queued in Action Scheduler.', 'wp-news-collector' ) ],
+	'sync_ran'        => [ 'success', __( 'Sync completed.', 'wp-news-collector' ) ],
+	'no_userhash'     => [ 'error',   __( 'Configure the Catbox userhash in Settings before managing albums.', 'wp-news-collector' ) ],
+	'covers_queued'   => [ 'success', __( 'Scanning for repeated images in Action Scheduler.', 'wp-news-collector' ) ],
+	'covers_ran'      => [ 'success', __( 'Repeated-image scan completed.', 'wp-news-collector' ) ],
+	'covers_saved'    => [ 'success', __( 'Cover selection saved.', 'wp-news-collector' ) ],
 ];
 ?>
 <div class="wrap">
@@ -84,6 +88,95 @@ $msg_map = [
 		<input type="hidden" name="action" value="nc_catbox_sync" />
 		<?php submit_button( __( 'Run sync now', 'wp-news-collector' ), 'secondary', 'submit', false ); ?>
 	</form>
+</div>
+
+<!-- -----------------------------------------------------------------------
+     Recurring channel covers: review workflow
+--------------------------------------------------------------------- -->
+<div class="postbox" style="padding:1rem 1.25rem;max-width:860px;margin-bottom:1.5rem;">
+	<h2 style="margin-top:0"><?php esc_html_e( 'Channel covers', 'wp-news-collector' ); ?></h2>
+	<p class="description" style="margin-top:0">
+		<?php esc_html_e( 'Images detected repeating across several posts of the same channel, which could be its cover or logo. Tick the ones that are covers: they are removed from posts (existing and future). Leave the rest unticked.', 'wp-news-collector' ); ?>
+	</p>
+
+	<?php if ( empty( $covers ) ) : ?>
+		<p class="description"><?php esc_html_e( 'No repeated images detected yet. Run a scan below.', 'wp-news-collector' ); ?></p>
+	<?php else : ?>
+	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="nc-covers-form">
+		<?php wp_nonce_field( 'nc_cover_status' ); ?>
+		<input type="hidden" name="action" value="nc_set_cover_status" />
+		<table class="wp-list-table widefat fixed striped" style="margin:.5rem 0;">
+			<thead>
+				<tr>
+					<th style="width:64px"><?php esc_html_e( 'Image', 'wp-news-collector' ); ?></th>
+					<th><?php esc_html_e( 'Source', 'wp-news-collector' ); ?></th>
+					<th style="width:60px;text-align:right"><?php esc_html_e( 'Posts', 'wp-news-collector' ); ?></th>
+					<th style="width:120px"><?php esc_html_e( 'Examples', 'wp-news-collector' ); ?></th>
+					<th style="width:130px"><?php esc_html_e( 'Cover?', 'wp-news-collector' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $covers as $i => $cover ) : ?>
+					<?php
+					$is_cover   = ( 'confirmed' === (string) ( $cover['status'] ?? 'candidate' ) );
+					$sample_ids = (array) ( $cover['sample_ids'] ?? [] );
+					?>
+					<tr>
+						<td>
+							<a href="<?php echo esc_url( (string) $cover['catbox_url'] ); ?>" target="_blank" rel="noreferrer noopener">
+								<img src="<?php echo esc_url( (string) $cover['catbox_url'] ); ?>" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:4px;" />
+							</a>
+						</td>
+						<td>
+							<strong><?php echo esc_html( (string) $cover['source'] ); ?></strong>
+							<?php if ( ! empty( $cover['is_icon'] ) ) : ?>
+								<span class="dashicons dashicons-star-filled" style="color:#dba617" title="<?php esc_attr_e( 'Channel icon', 'wp-news-collector' ); ?>"></span>
+							<?php endif; ?>
+							<br><span class="description"><?php echo esc_html( basename( (string) $cover['catbox_url'] ) ); ?></span>
+						</td>
+						<td style="text-align:right"><?php echo (int) $cover['post_count']; ?></td>
+						<td>
+							<?php
+							if ( empty( $sample_ids ) ) {
+								echo '<span style="color:#888">&mdash;</span>';
+							} else {
+								$links = [];
+								foreach ( $sample_ids as $sid ) {
+									$links[] = sprintf(
+										'<a href="%s" target="_blank" rel="noreferrer noopener">#%d</a>',
+										esc_url( NC_Plugin::item_permalink( (int) $sid ) ),
+										(int) $sid
+									);
+								}
+								echo implode( ', ', $links ); // phpcs:ignore WordPress.Security.EscapeOutput
+							}
+							?>
+						</td>
+						<td>
+							<input type="hidden" name="covers[<?php echo (int) $i; ?>][source]" value="<?php echo esc_attr( (string) $cover['source'] ); ?>" />
+							<input type="hidden" name="covers[<?php echo (int) $i; ?>][catbox_url]" value="<?php echo esc_attr( (string) $cover['catbox_url'] ); ?>" />
+							<label style="cursor:pointer">
+								<input type="checkbox" name="covers[<?php echo (int) $i; ?>][is_cover]" value="1" <?php checked( $is_cover ); ?> />
+								<?php esc_html_e( 'Is a cover', 'wp-news-collector' ); ?>
+							</label>
+						</td>
+					</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+	</form>
+	<?php endif; ?>
+
+	<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-top:1rem;flex-wrap:wrap;">
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0">
+			<?php wp_nonce_field( 'nc_detect_covers' ); ?>
+			<input type="hidden" name="action" value="nc_detect_covers" />
+			<?php submit_button( __( 'Scan for repeated images', 'wp-news-collector' ), 'secondary', 'submit', false ); ?>
+		</form>
+		<?php if ( ! empty( $covers ) ) : ?>
+			<button type="submit" form="nc-covers-form" class="button button-primary"><?php esc_html_e( 'Confirm', 'wp-news-collector' ); ?></button>
+		<?php endif; ?>
+	</div>
 </div>
 
 <!-- -----------------------------------------------------------------------

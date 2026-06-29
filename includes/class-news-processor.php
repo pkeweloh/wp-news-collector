@@ -13,12 +13,19 @@ class NC_News_Processor {
 
 	private const FETCH_TIMEOUT = 60;
 
+	/** Default minimum distinct posts for an image to be proposed as a cover candidate. */
+	public const COVER_THRESHOLD = 3;
+
+	/** @var array<string, string[]>|null Lazily loaded source => confirmed cover URLs. */
+	private ?array $cover_cache = null;
+
 	public function __construct(
 		private NC_Source_Repository $sources,
 		private NC_Item_Repository $items,
 		private NC_Catbox_Uploader $catbox,
 		private array $settings,
 		private ?NC_Catbox_Upload_Repository $uploads = null,
+		private ?NC_Source_Cover_Repository $covers = null,
 	) {}
 
 	/**
@@ -35,6 +42,7 @@ class NC_News_Processor {
 	 */
 	public function run_cycle(): array {
 		$stats    = [ 'fetched' => 0, 'inserted' => 0, 'skipped' => 0, 'errors' => [] ];
+		$this->cover_cache = null; // Refresh known covers for this cycle.
 		$album_id = '';
 		if ( ! empty( $this->settings['catbox_enabled'] ) && $this->uploads ) {
 			$album_id = $this->get_or_create_current_album( $stats );
@@ -194,6 +202,9 @@ class NC_News_Processor {
 					$item['article']['image_url'] = $catbox_url;
 				}
 			}
+
+			// 3b) Drop known channel-cover images for this source.
+			$item['images'] = $this->strip_cover_images( $source, (array) $item['images'] );
 		}
 
 		// 4) Resolve shortener for article URL
@@ -370,6 +381,140 @@ class NC_News_Processor {
 			}
 		}
 
+		return $stats;
+	}
+
+	/**
+	 * Remove any image that is a known recurring channel cover for the source.
+	 *
+	 * @param string[] $images
+	 * @return string[]
+	 */
+	private function strip_cover_images( string $source, array $images ): array {
+		if ( ! $this->covers || empty( $images ) ) {
+			return array_values( $images );
+		}
+		if ( null === $this->cover_cache ) {
+			$this->cover_cache = $this->covers->get_confirmed_urls_by_source();
+		}
+		$cover_urls = $this->cover_cache[ $source ] ?? [];
+		if ( empty( $cover_urls ) ) {
+			return array_values( $images );
+		}
+		$kept = [];
+		foreach ( $images as $url ) {
+			if ( in_array( (string) $url, $cover_urls, true ) ) {
+				continue;
+			}
+			$kept[] = $url;
+		}
+		return $kept;
+	}
+
+	/**
+	 * Propose recurring-image candidates for review. A candidate is an image
+	 * whose (deduped) Catbox URL appears in at least $threshold distinct posts
+	 * of the same source. This only records candidates (nc_source_covers); it
+	 * never modifies items and never changes an existing human decision. The
+	 * frequency heuristic cannot tell a channel logo from a legitimately
+	 * recurring image (e.g. a daily livestream cover), so a human confirms.
+	 *
+	 * @return array{sources_scanned:int, candidates:int, errors:string[]}
+	 */
+	public function detect_cover_candidates( int $threshold = 0 ): array {
+		$stats = [ 'sources_scanned' => 0, 'candidates' => 0, 'errors' => [] ];
+		if ( ! $this->covers ) {
+			$stats['errors'][] = 'Cover repository unavailable.';
+			return $stats;
+		}
+		if ( $threshold <= 0 ) {
+			$threshold = self::COVER_THRESHOLD;
+		}
+
+		$refs = $this->items->get_all_image_refs();
+
+		// Count distinct posts per (source, catbox image URL).
+		$counts = []; // source => [ url => count ]
+		foreach ( $refs as $ref ) {
+			$source = $ref['source'];
+			$seen   = [];
+			foreach ( $ref['images'] as $url ) {
+				if ( ! self::is_catbox_url( $url ) || isset( $seen[ $url ] ) ) {
+					continue;
+				}
+				$seen[ $url ]              = true;
+				$counts[ $source ][ $url ] = ( $counts[ $source ][ $url ] ?? 0 ) + 1;
+			}
+		}
+
+		foreach ( $counts as $source => $urls ) {
+			$stats['sources_scanned']++;
+			foreach ( $urls as $url => $count ) {
+				if ( $count < $threshold ) {
+					continue;
+				}
+				$original = $this->uploads ? $this->uploads->get_original_for_catbox( $url ) : '';
+				$this->covers->upsert_candidate( $source, $url, $original, $count );
+				$stats['candidates']++;
+			}
+		}
+
+		return $stats;
+	}
+
+	/**
+	 * Strip every confirmed cover from existing items in place. Called after a
+	 * cover is confirmed; idempotent.
+	 *
+	 * @return array{items_cleaned:int, urls_removed:int, errors:string[]}
+	 */
+	public function clean_confirmed_covers(): array {
+		$stats = [ 'items_cleaned' => 0, 'urls_removed' => 0, 'errors' => [] ];
+		if ( ! $this->covers ) {
+			$stats['errors'][] = 'Cover repository unavailable.';
+			return $stats;
+		}
+		$confirmed = $this->covers->get_confirmed_urls_by_source();
+		if ( empty( $confirmed ) ) {
+			return $stats;
+		}
+		// source => [ url => true ] for O(1) lookups.
+		$lookup = [];
+		foreach ( $confirmed as $source => $urls ) {
+			foreach ( $urls as $url ) {
+				$lookup[ $source ][ $url ] = true;
+			}
+		}
+
+		foreach ( $this->items->get_all_image_refs() as $ref ) {
+			$source = $ref['source'];
+			if ( empty( $lookup[ $source ] ) ) {
+				continue;
+			}
+			$kept    = [];
+			$removed = 0;
+			foreach ( $ref['images'] as $url ) {
+				if ( isset( $lookup[ $source ][ $url ] ) ) {
+					$removed++;
+					continue;
+				}
+				$kept[] = $url;
+			}
+			if ( $removed <= 0 ) {
+				continue;
+			}
+			$full = $this->items->get_by_id( $ref['id'] );
+			if ( ! is_array( $full ) ) {
+				continue;
+			}
+			$videos  = (array) ( $full['videos'] ?? [] );
+			$article = is_array( $full['article'] ?? null ) ? $full['article'] : null;
+			$this->items->update_media( $ref['id'], array_values( $kept ), $videos, $article );
+			$stats['items_cleaned']++;
+			$stats['urls_removed'] += $removed;
+		}
+
+		$this->cover_cache = null; // Invalidate so later ingests reload confirmed set.
 		return $stats;
 	}
 

@@ -110,6 +110,56 @@ class NC_Item_Repository {
 	}
 
 	/**
+	 * Lightweight (id, source, images) for every item, for batch media
+	 * maintenance (e.g. recurring channel-cover detection). Images are decoded.
+	 *
+	 * @return array<int, array{id:int, source:string, images:array<int,string>}>
+	 */
+	public function get_all_image_refs(): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( "SELECT id, source, images FROM {$this->table}", ARRAY_A );
+		$out  = [];
+		foreach ( (array) $rows as $row ) {
+			$images = [];
+			$raw    = $row['images'] ?? '';
+			if ( is_string( $raw ) && '' !== $raw ) {
+				$decoded = json_decode( $raw, true );
+				if ( is_array( $decoded ) ) {
+					$images = array_map( 'strval', $decoded );
+				}
+			}
+			$out[] = [
+				'id'     => (int) $row['id'],
+				'source' => (string) $row['source'],
+				'images' => $images,
+			];
+		}
+		return $out;
+	}
+
+	/**
+	 * A few item IDs of a source whose images contain the given Catbox URL,
+	 * for reviewing a cover candidate. Matches on the bare filename to dodge
+	 * JSON slash-escaping in the stored column.
+	 *
+	 * @return int[]
+	 */
+	public function find_ids_with_image( string $source, string $catbox_url, int $limit = 3 ): array {
+		global $wpdb;
+		$needle = '%' . $wpdb->esc_like( basename( $catbox_url ) ) . '%';
+		$ids    = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT id FROM {$this->table} WHERE source = %s AND images LIKE %s ORDER BY published_at DESC LIMIT %d",
+				$source,
+				$needle,
+				max( 1, $limit )
+			)
+		);
+		return array_map( 'intval', is_array( $ids ) ? $ids : [] );
+	}
+
+	/**
 	 * Update the media-related fields on an existing row.
 	 *
 	 * @param string[]                       $images

@@ -419,3 +419,45 @@ msgstr[1] "%d ítems"
 msgid "F j, H:i"
 msgstr "j \d\e F, H:i"
 
+msgid "Channel covers"
+msgstr "Portadas de canal"
+
+msgid "Images detected repeating across several posts of the same channel, which could be its cover or logo. Tick the ones that are covers: they are removed from posts (existing and future). Leave the rest unticked."
+msgstr "Imágenes detectadas que se repiten en varios posts de un mismo canal y que podrían ser su portada o logo. Marca las que sean portada: se eliminan de los posts (existentes y futuros). Deja sin marcar el resto."
+
+msgid "Posts"
+msgstr "Posts"
+
+msgid "Image"
+msgstr "Imagen"
+
+msgid "Examples"
+msgstr "Ejemplos"
+
+msgid "Channel icon"
+msgstr "Icono del canal"
+
+msgid "No repeated images detected yet. Run a scan below."
+msgstr "Aún no se han detectado imágenes repetidas. Lanza un análisis abajo."
+
+msgid "Cover?"
+msgstr "¿Portada?"
+
+msgid "Is a cover"
+msgstr "Es portada"
+
+msgid "Confirm"
+msgstr "Confirmar"
+
+msgid "Scan for repeated images"
+msgstr "Analizar imágenes repetidas"
+
+msgid "Scanning for repeated images in Action Scheduler."
+msgstr "Analizando imágenes repetidas en Action Scheduler."
+
+msgid "Repeated-image scan completed."
+msgstr "Análisis de imágenes repetidas completado."
+
+msgid "Cover selection saved."
+msgstr "Selección de portadas guardada."
+

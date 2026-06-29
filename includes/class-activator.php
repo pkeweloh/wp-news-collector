@@ -22,6 +22,7 @@ class NC_Activator {
 		$items            = $wpdb->prefix . 'nc_items';
 		$catbox_uploads   = $wpdb->prefix . 'nc_catbox_uploads';
 		$catbox_albums    = $wpdb->prefix . 'nc_catbox_albums';
+		$source_covers    = $wpdb->prefix . 'nc_source_covers';
 
 		$sql_sources = "CREATE TABLE {$sources} (
 			id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -77,10 +78,28 @@ class NC_Activator {
 			UNIQUE KEY uk_month (month)
 		) {$charset_collate};";
 
+		// Recurring channel-cover images RSSHub injects into many posts.
+		// Frequency only proposes candidates; a human confirms which are real
+		// covers (status). Only confirmed covers are stripped from items.
+		$sql_source_covers = "CREATE TABLE {$source_covers} (
+			id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			source       VARCHAR(255)    NOT NULL DEFAULT '',
+			catbox_url   VARCHAR(500)    NOT NULL DEFAULT '',
+			original_url TEXT,
+			post_count   INT UNSIGNED    NOT NULL DEFAULT 0,
+			status       VARCHAR(20)     NOT NULL DEFAULT 'candidate',
+			is_icon      TINYINT(1)      NOT NULL DEFAULT 0,
+			created_at   DATETIME        NOT NULL,
+			updated_at   DATETIME        NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY uk_source_url (source(150), catbox_url(150))
+		) {$charset_collate};";
+
 		dbDelta( $sql_sources );
 		dbDelta( $sql_items );
 		dbDelta( $sql_catbox_uploads );
 		dbDelta( $sql_catbox_albums );
+		dbDelta( $sql_source_covers );
 
 		// Seed default settings only on first activation; preserve existing values.
 		if ( false === get_option( 'nc_settings' ) ) {
@@ -104,7 +123,10 @@ class NC_Activator {
 		$items          = $wpdb->prefix . 'nc_items';
 		$catbox_uploads = $wpdb->prefix . 'nc_catbox_uploads';
 		$catbox_albums  = $wpdb->prefix . 'nc_catbox_albums';
+		$source_covers  = $wpdb->prefix . 'nc_source_covers';
 
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "DROP TABLE IF EXISTS {$source_covers}" );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "DROP TABLE IF EXISTS {$catbox_uploads}" );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

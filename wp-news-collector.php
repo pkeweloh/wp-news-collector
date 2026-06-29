@@ -30,6 +30,7 @@ require_once NC_PLUGIN_DIR . 'includes/class-feed-parser.php';
 require_once NC_PLUGIN_DIR . 'includes/class-og-scraper.php';
 require_once NC_PLUGIN_DIR . 'includes/class-catbox-uploader.php';
 require_once NC_PLUGIN_DIR . 'includes/class-catbox-upload-repository.php';
+require_once NC_PLUGIN_DIR . 'includes/class-source-cover-repository.php';
 require_once NC_PLUGIN_DIR . 'includes/class-catbox-syncer.php';
 require_once NC_PLUGIN_DIR . 'includes/class-redirect-resolver.php';
 require_once NC_PLUGIN_DIR . 'includes/class-news-processor.php';

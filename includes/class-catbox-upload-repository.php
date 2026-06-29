@@ -56,6 +56,21 @@ class NC_Catbox_Upload_Repository {
 	}
 
 	/**
+	 * Look up the original (source) URL we logged for a given Catbox URL.
+	 * Returns '' if none is tracked.
+	 */
+	public function get_original_for_catbox( string $catbox_url ): string {
+		global $wpdb;
+		$val = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT original_url FROM {$this->uploads_table} WHERE catbox_url = %s LIMIT 1",
+				$catbox_url
+			)
+		);
+		return is_string( $val ) ? $val : '';
+	}
+
+	/**
 	 * Insert a row for a catbox URL found in nc_items but not yet tracked.
 	 * Returns true if a new row was actually inserted.
 	 */

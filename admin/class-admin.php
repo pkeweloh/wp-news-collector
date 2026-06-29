@@ -25,11 +25,12 @@ class NC_Admin {
 		private NC_News_Processor $processor,
 		private NC_Catbox_Upload_Repository $uploads,
 		private NC_Catbox_Syncer $syncer,
+		private NC_Source_Cover_Repository $covers,
 	) {
 		$this->settings_page = new NC_Settings_Page();
 		$this->sources_page  = new NC_Sources_Page( $this->sources );
 		$this->items_page    = new NC_Items_Page( $this->items );
-		$this->catbox_page   = new NC_Catbox_Page( $this->uploads, $this->syncer );
+		$this->catbox_page   = new NC_Catbox_Page( $this->uploads, $this->syncer, $this->covers, $this->items );
 	}
 
 	public function register_menus(): void {
@@ -312,6 +313,65 @@ class NC_Admin {
 			$msg = 'sync_ran';
 		}
 		wp_safe_redirect( add_query_arg( [ 'page' => 'nc_catbox', 'nc_msg' => $msg ], admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	public function handle_detect_covers(): void {
+		$this->ensure_admin();
+		check_admin_referer( 'nc_detect_covers' );
+		if ( function_exists( 'as_enqueue_async_action' ) ) {
+			as_enqueue_async_action( 'nc_detect_covers', [], 'nc' );
+			$msg = 'covers_queued';
+		} else {
+			$this->processor->detect_cover_candidates();
+			$msg = 'covers_ran';
+		}
+		wp_safe_redirect( add_query_arg( [ 'page' => 'nc_catbox', 'nc_msg' => $msg ], admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	public function handle_set_cover_status(): void {
+		$this->ensure_admin();
+		check_admin_referer( 'nc_cover_status' );
+		$rows = isset( $_POST['covers'] ) && is_array( $_POST['covers'] ) ? wp_unslash( $_POST['covers'] ) : [];
+
+		$touched_sources = [];
+		$any_confirmed    = false;
+
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$source = isset( $row['source'] ) ? sanitize_text_field( (string) $row['source'] ) : '';
+			$url    = isset( $row['catbox_url'] ) ? esc_url_raw( (string) $row['catbox_url'] ) : '';
+			if ( '' === $source || '' === $url ) {
+				continue;
+			}
+			// Binary: ticked = 'confirmed' (a cover, removed); unticked = 'candidate'.
+			$status = ! empty( $row['is_cover'] ) ? 'confirmed' : 'candidate';
+			$this->covers->set_status( $source, $url, $status );
+			$touched_sources[ $source ] = true;
+			if ( 'confirmed' === $status ) {
+				$any_confirmed = true;
+			}
+		}
+
+		// Recompute the display icon for every source shown in the table, since
+		// unticking the current icon may need to hand it to another confirmed cover.
+		foreach ( array_keys( $touched_sources ) as $source ) {
+			$this->covers->set_primary_icon( $source );
+		}
+
+		if ( $any_confirmed ) {
+			// Apply: strip newly confirmed covers from existing items.
+			if ( function_exists( 'as_enqueue_async_action' ) ) {
+				as_enqueue_async_action( 'nc_clean_covers', [], 'nc' );
+			} else {
+				$this->processor->clean_confirmed_covers();
+			}
+		}
+
+		wp_safe_redirect( add_query_arg( [ 'page' => 'nc_catbox', 'nc_msg' => 'covers_saved' ], admin_url( 'admin.php' ) ) );
 		exit;
 	}
 

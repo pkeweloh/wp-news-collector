@@ -12,6 +12,7 @@ class NC_Plugin {
 	private NC_Source_Repository $sources;
 	private NC_Item_Repository $items;
 	private NC_Catbox_Upload_Repository $uploads;
+	private NC_Source_Cover_Repository $covers;
 	private NC_News_Processor $processor;
 	private NC_Catbox_Syncer $syncer;
 	private NC_Rewrite $rewrite;
@@ -24,9 +25,10 @@ class NC_Plugin {
 		$this->sources   = new NC_Source_Repository();
 		$this->items     = new NC_Item_Repository();
 		$this->uploads   = new NC_Catbox_Upload_Repository();
+		$this->covers    = new NC_Source_Cover_Repository();
 		$settings        = self::get_settings();
 		$catbox          = new NC_Catbox_Uploader( $settings['catbox_userhash'] );
-		$this->processor = new NC_News_Processor( $this->sources, $this->items, $catbox, $settings, $this->uploads );
+		$this->processor = new NC_News_Processor( $this->sources, $this->items, $catbox, $settings, $this->uploads, $this->covers );
 		$this->syncer    = new NC_Catbox_Syncer( $this->items, $this->uploads, $catbox );
 		$this->rewrite   = new NC_Rewrite();
 		$this->rest      = new NC_Rest( $this->items );
@@ -34,7 +36,7 @@ class NC_Plugin {
 
 		if ( is_admin() ) {
 			require_once NC_PLUGIN_DIR . 'admin/class-admin.php';
-			$this->admin = new NC_Admin( $this->sources, $this->items, $this->processor, $this->uploads, $this->syncer );
+			$this->admin = new NC_Admin( $this->sources, $this->items, $this->processor, $this->uploads, $this->syncer, $this->covers );
 		}
 
 		require_once NC_PLUGIN_DIR . 'public/class-shortcode.php';
@@ -62,6 +64,8 @@ class NC_Plugin {
 			add_action( 'admin_post_nc_run_now', [ $this->admin, 'handle_run_now' ] );
 			add_action( 'admin_post_nc_backfill_catbox', [ $this->admin, 'handle_backfill_catbox' ] );
 			add_action( 'admin_post_nc_catbox_sync', [ $this->admin, 'handle_catbox_sync' ] );
+			add_action( 'admin_post_nc_detect_covers', [ $this->admin, 'handle_detect_covers' ] );
+			add_action( 'admin_post_nc_set_cover_status', [ $this->admin, 'handle_set_cover_status' ] );
 			add_action( 'admin_post_nc_item_media_save', [ $this->admin, 'handle_item_media_save' ] );
 		}
 
@@ -71,6 +75,8 @@ class NC_Plugin {
 		add_action( 'nc_backfill_catbox', [ $this->processor, 'backfill_catbox' ] );
 		add_action( 'nc_backfill_catbox_ids', [ $this->processor, 'backfill_catbox' ] );
 		add_action( 'nc_catbox_sync', [ $this->syncer, 'run_sync' ] );
+		add_action( 'nc_detect_covers', [ $this->processor, 'detect_cover_candidates' ] );
+		add_action( 'nc_clean_covers', [ $this->processor, 'clean_confirmed_covers' ] );
 		add_action( 'init', [ $this, 'maybe_schedule_recurring' ] );
 
 		$this->rewrite->register();
