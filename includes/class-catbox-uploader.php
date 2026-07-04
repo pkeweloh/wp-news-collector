@@ -17,6 +17,20 @@ class NC_Catbox_Uploader {
 	private const MIN_BYTES         = 512; // small responses are typically error HTML
 	private const VALID_CT_PREFIXES = [ 'image/', 'video/', 'audio/' ];
 
+	/** Fallback extension by Content-Type when the URL carries none. */
+	private const EXT_BY_MIME = [
+		'image/jpeg'      => '.jpg',
+		'image/png'       => '.png',
+		'image/gif'       => '.gif',
+		'image/webp'      => '.webp',
+		'video/mp4'       => '.mp4',
+		'video/webm'      => '.webm',
+		'video/quicktime' => '.mov',
+		'audio/mpeg'      => '.mp3',
+		'audio/ogg'       => '.ogg',
+		'audio/mp4'       => '.m4a',
+	];
+
 	public function __construct( private string $userhash = '' ) {}
 
 	/**
@@ -96,14 +110,39 @@ class NC_Catbox_Uploader {
 			throw new NC_Catbox_Exception( 'Response too small (' . strlen( $body ) . ' bytes)' );
 		}
 
-		$path     = (string) wp_parse_url( $url, PHP_URL_PATH );
-		$ext      = pathinfo( $path, PATHINFO_EXTENSION );
-		$suffix   = '' !== $ext ? '.' . strtolower( preg_replace( '~[^a-z0-9]~i', '', $ext ) ) : '.bin';
-		return [ $body, $suffix ];
+		return [ $body, self::suffix_for( $url, $content_type ) ];
+	}
+
+	// Catbox keeps the filename's extension, so an extension-less URL must
+	// derive one from the Content-Type rather than upload a bare temp name.
+	private static function suffix_for( string $url, string $content_type ): string {
+		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+		$ext  = strtolower( preg_replace( '~[^A-Za-z0-9]~', '', pathinfo( $path, PATHINFO_EXTENSION ) ) );
+		if ( 1 === preg_match( '~^[a-z0-9]{1,5}$~', $ext ) ) {
+			return '.' . $ext;
+		}
+		$base = strtolower( trim( explode( ';', $content_type )[0] ) );
+		return self::EXT_BY_MIME[ $base ] ?? '.bin';
+	}
+
+	// Catbox rejects non-ASCII (unicode/emoji) filenames.
+	private static function sanitize_filename( string $name ): string {
+		$dot  = strrpos( $name, '.' );
+		$stem = false === $dot ? $name : substr( $name, 0, $dot );
+		$ext  = false === $dot ? '' : substr( $name, $dot );
+		$stem = trim( (string) preg_replace( '~[^A-Za-z0-9._-]~', '_', $stem ), '._' );
+		if ( '' === $stem ) {
+			$stem = 'file';
+		}
+		$ext = (string) preg_replace( '~[^A-Za-z0-9._-]~', '', $ext );
+		if ( 1 !== preg_match( '~^\.[A-Za-z0-9]{1,5}$~', $ext ) ) {
+			$ext = '.bin';
+		}
+		return substr( $stem, 0, 80 ) . $ext;
 	}
 
 	private function upload_file( string $path ): string {
-		$filename  = basename( $path );
+		$filename  = self::sanitize_filename( basename( $path ) );
 		$mime      = $this->guess_mime( $path );
 		$boundary  = 'CatboxBoundary' . wp_generate_password( 12, false );
 		$content   = file_get_contents( $path );
