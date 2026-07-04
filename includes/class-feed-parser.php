@@ -11,6 +11,7 @@ class NC_Feed_Parser {
 
 	private const YOUTUBE_PATTERNS = [
 		'~youtube\.com/watch\?(?:[^&]*&)*v=([a-zA-Z0-9_-]{11})~',
+		'~youtube\.com/(?:shorts|live|embed)/([a-zA-Z0-9_-]{11})~',
 		'~youtu\.be/([a-zA-Z0-9_-]{11})~',
 	];
 	private const TELEGRAM_ID_RE = '~/(\d+)(?:\?.*)?$~';
@@ -492,7 +493,7 @@ class NC_Feed_Parser {
 		return 0;
 	}
 
-	private static function extract_youtube_id( string $url ): string {
+	public static function extract_youtube_id( string $url ): string {
 		foreach ( self::YOUTUBE_PATTERNS as $pattern ) {
 			if ( preg_match( $pattern, $url, $m ) ) {
 				return $m[1];

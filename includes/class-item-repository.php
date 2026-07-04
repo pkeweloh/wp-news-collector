@@ -97,6 +97,49 @@ class NC_Item_Repository {
 		return is_array( $row ) ? $this->decode_row( $row ) : null;
 	}
 
+	public function get_by_guid( string $guid ): ?array {
+		global $wpdb;
+		$row = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$this->table} WHERE guid = %s LIMIT 1", $guid ),
+			ARRAY_A
+		);
+		return is_array( $row ) ? $this->decode_row( $row ) : null;
+	}
+
+	/** Swap one original media URL for its Catbox URL. Returns published_at or null. */
+	public function replace_media_url( string $item_guid, string $upload_type, string $original_url, string $new_url ): ?string {
+		$item = $this->get_by_guid( $item_guid );
+		if ( null === $item ) {
+			return null;
+		}
+		$images  = array_map( 'strval', (array) ( $item['images'] ?? [] ) );
+		$videos  = (array) ( $item['videos'] ?? [] );
+		$article = is_array( $item['article'] ?? null ) ? $item['article'] : null;
+
+		if ( 'image' === $upload_type ) {
+			$images = array_map(
+				static fn ( string $u ): string => $u === $original_url ? $new_url : $u,
+				$images
+			);
+		} elseif ( 'poster' === $upload_type || 'video' === $upload_type ) {
+			foreach ( $videos as &$v ) {
+				$v = (array) $v;
+				if ( 'poster' === $upload_type && ( $v['poster_url'] ?? '' ) === $original_url ) {
+					$v['poster_url'] = $new_url;
+				} elseif ( 'video' === $upload_type && ( $v['original_url'] ?? '' ) === $original_url ) {
+					$v['catbox_url'] = $new_url;
+					$v['status']     = 'ok';
+				}
+			}
+			unset( $v );
+		} elseif ( 'article_image' === $upload_type && is_array( $article ) && ( $article['image_url'] ?? '' ) === $original_url ) {
+			$article['image_url'] = $new_url;
+		}
+
+		$this->update_media( (int) $item['id'], array_values( $images ), array_values( $videos ), $article );
+		return isset( $item['published_at'] ) ? (string) $item['published_at'] : null;
+	}
+
 	/**
 	 * Return all item IDs in ascending order. Useful for batch maintenance jobs.
 	 *
@@ -258,19 +301,37 @@ class NC_Item_Repository {
 		return $this->fetch_page( $page, $page_size, $conditions, $params );
 	}
 
+	// An image/cover still on a non-Catbox URL means its upload failed. Literals
+	// only, no input, so it is safe to interpolate.
+	private const PENDING_IMAGE_SQL = "(
+		EXISTS (
+			SELECT 1 FROM JSON_TABLE(
+				CASE WHEN JSON_VALID(images) THEN images ELSE '[]' END,
+				'$[*]' COLUMNS ( val VARCHAR(500) PATH '$' )
+			) jt
+			WHERE jt.val LIKE 'http%' AND jt.val NOT LIKE 'https://files.catbox.moe/%'
+		)
+		OR (
+			JSON_VALID(article)
+			AND JSON_UNQUOTE(JSON_EXTRACT(article, '$.image_url')) LIKE 'http%'
+			AND JSON_UNQUOTE(JSON_EXTRACT(article, '$.image_url')) NOT LIKE 'https://files.catbox.moe/%'
+		)
+	)";
+
 	/**
 	 * Admin pagination: all items + optional video filter.
 	 *
 	 * Filter values:
 	 *  - 'all'           → no extra WHERE
 	 *  - 'too_big'       → videos LIKE '%"too_big"%'
-	 *  - 'upload_failed' → videos LIKE '%"upload_failed"%'
+	 *  - 'upload_failed' → failed video OR (when Catbox is on) an image/cover
+	 *                      left on its original non-Catbox URL
 	 *  - 'hidden'        → enabled = 0
 	 *
 	 * @return array<string, mixed>
 	 */
-	public function get_page_admin( int $page, int $page_size, string $video_filter = 'all' ): array {
-		[ $conditions, $params ] = $this->admin_filter_clause( $video_filter );
+	public function get_page_admin( int $page, int $page_size, string $video_filter = 'all', bool $catbox_enabled = false ): array {
+		[ $conditions, $params ] = $this->admin_filter_clause( $video_filter, $catbox_enabled );
 		return $this->fetch_page( $page, $page_size, $conditions, $params );
 	}
 
@@ -279,7 +340,7 @@ class NC_Item_Repository {
 	 *
 	 * @return array{0: string[], 1: array<int, mixed>}
 	 */
-	private function admin_filter_clause( string $video_filter ): array {
+	private function admin_filter_clause( string $video_filter, bool $catbox_enabled = false ): array {
 		$conditions = [];
 		$params     = [];
 		switch ( $video_filter ) {
@@ -288,8 +349,12 @@ class NC_Item_Repository {
 				$params[]     = '%"too_big"%';
 				break;
 			case 'upload_failed':
-				$conditions[] = 'videos LIKE %s';
-				$params[]     = '%"upload_failed"%';
+				if ( $catbox_enabled ) {
+					$conditions[] = '( videos LIKE %s OR ' . self::PENDING_IMAGE_SQL . ' )';
+				} else {
+					$conditions[] = 'videos LIKE %s';
+				}
+				$params[] = '%"upload_failed"%';
 				break;
 			case 'hidden':
 				$conditions[] = 'enabled = 0';
@@ -304,9 +369,9 @@ class NC_Item_Repository {
 	/**
 	 * Count items matching an admin filter key, for the filter links.
 	 */
-	public function count_admin( string $video_filter = 'all' ): int {
+	public function count_admin( string $video_filter = 'all', bool $catbox_enabled = false ): int {
 		global $wpdb;
-		[ $conditions, $params ] = $this->admin_filter_clause( $video_filter );
+		[ $conditions, $params ] = $this->admin_filter_clause( $video_filter, $catbox_enabled );
 		$where = empty( $conditions ) ? '' : ( 'WHERE ' . implode( ' AND ', $conditions ) );
 		if ( empty( $params ) ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

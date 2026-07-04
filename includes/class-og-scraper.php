@@ -11,7 +11,8 @@ class NC_OG_Scraper {
 
 	private const TIMEOUT     = 8;
 	private const MAX_BYTES   = 65536;
-	private const USER_AGENT  = 'Mozilla/5.0 (compatible; NewsCollector/1.0)';
+	// A bare "Mozilla/5.0" gets 403'd by anti-bot on many news sites (e.g. gaceta.es).
+	private const USER_AGENT  = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
 	/**
 	 * Fetch og:image and og:site_name in a single request. Never throws.
@@ -29,7 +30,10 @@ class NC_OG_Scraper {
 			[
 				'timeout'     => self::TIMEOUT,
 				'redirection' => 5,
-				'headers'     => [ 'User-Agent' => self::USER_AGENT ],
+				'headers'     => [
+					'User-Agent'      => self::USER_AGENT,
+					'Accept-Language' => 'es-ES,es;q=0.9',
+				],
 			]
 		);
 		if ( is_wp_error( $response ) ) {
@@ -76,5 +80,10 @@ class NC_OG_Scraper {
 			}
 		}
 		return $out;
+	}
+
+	// Stable cover that does not expire, unlike the URL Telegram embeds.
+	public static function youtube_thumbnail( string $video_id ): string {
+		return 'https://img.youtube.com/vi/' . $video_id . '/hqdefault.jpg';
 	}
 }

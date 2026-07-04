@@ -20,6 +20,7 @@ class NC_Catbox_Page {
 		$albums        = $this->uploads->get_albums_with_stats();
 		$total_uploads = $this->uploads->count_total();
 		$unassigned    = $this->uploads->count_unassigned();
+		$failed        = $this->uploads->count_failed();
 		$covers        = $this->covers->get_all();
 		foreach ( $covers as $i => $cover ) {
 			$covers[ $i ]['sample_ids'] = $this->items->find_ids_with_image(

@@ -141,16 +141,20 @@ class NC_Items_Page {
 		$vf    = isset( $_GET['vf'] ) ? sanitize_key( (string) $_GET['vf'] ) : 'all';
 		$paged = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
 		$page_size = 25;
-		$page  = $this->items->get_page_admin( $paged, $page_size, $vf );
+
+		$settings       = (array) get_option( 'nc_settings', [] );
+		$catbox_enabled = ! empty( $settings['catbox_enabled'] );
+
+		$page  = $this->items->get_page_admin( $paged, $page_size, $vf, $catbox_enabled );
 
 		$table = new NC_Items_Table( $page['items'], $vf, $paged );
 		$table->prepare_items();
 
 		$filter_counts = [
-			'all'           => $this->items->count_admin( 'all' ),
-			'too_big'       => $this->items->count_admin( 'too_big' ),
-			'upload_failed' => $this->items->count_admin( 'upload_failed' ),
-			'hidden'        => $this->items->count_admin( 'hidden' ),
+			'all'           => $this->items->count_admin( 'all', $catbox_enabled ),
+			'too_big'       => $this->items->count_admin( 'too_big', $catbox_enabled ),
+			'upload_failed' => $this->items->count_admin( 'upload_failed', $catbox_enabled ),
+			'hidden'        => $this->items->count_admin( 'hidden', $catbox_enabled ),
 		];
 
 		$msg = isset( $_GET['nc_msg'] ) ? sanitize_key( (string) $_GET['nc_msg'] ) : '';

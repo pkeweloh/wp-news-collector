@@ -55,6 +55,74 @@ class NC_Catbox_Upload_Repository {
 		);
 	}
 
+	/** @return array<string, mixed>|null */
+	public function get_by_id( int $id ): ?array {
+		global $wpdb;
+		$row = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$this->uploads_table} WHERE id = %d", $id ),
+			ARRAY_A
+		);
+		return is_array( $row ) ? $row : null;
+	}
+
+	// A failed row keeps a NULL catbox_url so it does not collide under uk_catbox_url.
+	public function set_result( int $id, ?string $catbox_url, ?string $error ): void {
+		global $wpdb;
+		$wpdb->update(
+			$this->uploads_table,
+			[ 'catbox_url' => $catbox_url, 'error' => $error ],
+			[ 'id' => $id ],
+			[ '%s', '%s' ],
+			[ '%d' ]
+		);
+	}
+
+	// Update the row for (item_guid, original_url) or insert one.
+	public function resolve_result(
+		string $source,
+		string $source_name,
+		string $item_guid,
+		string $upload_type,
+		string $original_url,
+		?string $catbox_url,
+		?string $error
+	): void {
+		global $wpdb;
+		$id = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$this->uploads_table} WHERE item_guid = %s AND original_url = %s LIMIT 1",
+				$item_guid,
+				$original_url
+			)
+		);
+		if ( $id ) {
+			$this->set_result( (int) $id, $catbox_url, $error );
+			return;
+		}
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$wpdb->insert(
+			$this->uploads_table,
+			[
+				'source'       => $source,
+				'source_name'  => $source_name,
+				'item_guid'    => $item_guid,
+				'upload_type'  => $upload_type,
+				'original_url' => $original_url,
+				'catbox_url'   => $catbox_url,
+				'error'        => $error,
+				'uploaded_at'  => $now,
+				'created_at'   => $now,
+			],
+			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+		);
+	}
+
+	public function count_failed(): int {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$this->uploads_table} WHERE error IS NOT NULL" );
+	}
+
 	/**
 	 * Look up the original (source) URL we logged for a given Catbox URL.
 	 * Returns '' if none is tracked.
@@ -146,7 +214,9 @@ class NC_Catbox_Upload_Repository {
 		$offset    = ( $page - 1 ) * $page_size;
 		$where     = 'WHERE 1=1';
 		if ( 'unassigned' === $filter ) {
-			$where .= " AND album_id IS NULL AND catbox_url != ''";
+			$where .= " AND album_id IS NULL AND catbox_url IS NOT NULL AND catbox_url != ''";
+		} elseif ( 'failed' === $filter ) {
+			$where .= ' AND error IS NOT NULL';
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$this->uploads_table} {$where}" );

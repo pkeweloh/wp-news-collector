@@ -316,6 +316,42 @@ class NC_Admin {
 		exit;
 	}
 
+	public function handle_retry_catbox_upload(): void {
+		$this->ensure_admin();
+		check_admin_referer( 'nc_retry_upload' );
+		$id       = isset( $_POST['upload_id'] ) ? (int) $_POST['upload_id'] : 0;
+		$settings = NC_Plugin::get_settings();
+		if ( empty( $settings['catbox_enabled'] ) ) {
+			wp_safe_redirect( add_query_arg( [ 'page' => 'nc_catbox', 'nc_msg' => 'catbox_disabled' ], admin_url( 'admin.php' ) ) );
+			exit;
+		}
+		$result = $this->syncer->retry_upload( $id );
+		$msg    = ! empty( $result['ok'] ) ? 'retry_ok' : 'retry_failed';
+		wp_safe_redirect( add_query_arg( [ 'page' => 'nc_catbox', 'uf' => 'failed', 'nc_msg' => $msg ], admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	public function handle_retry_item_uploads(): void {
+		$this->ensure_admin();
+		$id = isset( $_POST['item_id'] ) ? (int) $_POST['item_id'] : 0;
+		check_admin_referer( 'nc_retry_item_uploads_' . $id );
+		$settings = NC_Plugin::get_settings();
+		if ( empty( $settings['catbox_enabled'] ) ) {
+			wp_safe_redirect( add_query_arg( [ 'page' => 'nc_items', 'view' => $id, 'nc_msg' => 'catbox_disabled' ], admin_url( 'admin.php' ) ) );
+			exit;
+		}
+		$result = $this->syncer->retry_item( $id );
+		if ( ! empty( $result['not_found'] ) ) {
+			$msg = 'retry_failed';
+		} elseif ( ! empty( $result['ok'] ) ) {
+			$msg = 0 === (int) ( $result['pending'] ?? 0 ) ? 'retry_none' : 'retry_ok';
+		} else {
+			$msg = 'retry_partial';
+		}
+		wp_safe_redirect( add_query_arg( [ 'page' => 'nc_items', 'view' => $id, 'nc_msg' => $msg ], admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
 	public function handle_detect_covers(): void {
 		$this->ensure_admin();
 		check_admin_referer( 'nc_detect_covers' );

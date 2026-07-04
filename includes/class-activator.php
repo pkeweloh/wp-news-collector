@@ -54,6 +54,7 @@ class NC_Activator {
 			KEY idx_published (published_at, telegram_id)
 		) {$charset_collate};";
 
+		// catbox_url nullable: failed rows are NULL, which coexist under uk_catbox_url.
 		$sql_catbox_uploads = "CREATE TABLE {$catbox_uploads} (
 			id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			source       VARCHAR(255)    NOT NULL DEFAULT '',
@@ -61,7 +62,8 @@ class NC_Activator {
 			item_guid    VARCHAR(500)    NOT NULL DEFAULT '',
 			upload_type  VARCHAR(32)     NOT NULL DEFAULT '',
 			original_url TEXT,
-			catbox_url   VARCHAR(500)    NOT NULL DEFAULT '',
+			catbox_url   VARCHAR(500)    DEFAULT NULL,
+			error        TEXT            DEFAULT NULL,
 			album_id     VARCHAR(32)     DEFAULT NULL,
 			uploaded_at  DATETIME        NOT NULL,
 			created_at   DATETIME        NOT NULL,
@@ -101,6 +103,8 @@ class NC_Activator {
 		dbDelta( $sql_catbox_albums );
 		dbDelta( $sql_source_covers );
 
+		self::upgrade_catbox_uploads( $catbox_uploads );
+
 		// Seed default settings only on first activation; preserve existing values.
 		if ( false === get_option( 'nc_settings' ) ) {
 			add_option( 'nc_settings', NC_Plugin::default_settings() );
@@ -111,6 +115,20 @@ class NC_Activator {
 		$slug = NC_Rewrite::slug();
 		add_rewrite_rule( '^' . $slug . '/([0-9]+)/?$', 'index.php?' . NC_Rewrite::QUERY_VAR . '=$matches[1]', 'top' );
 		flush_rewrite_rules( false );
+	}
+
+	// dbDelta does not reliably change column nullability, so migrate in place.
+	// Idempotent and non-destructive: safe on every (re)activation.
+	private static function upgrade_catbox_uploads( string $table ): void {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$columns = (array) $wpdb->get_col( "SHOW COLUMNS FROM {$table}" );
+		if ( ! in_array( 'error', $columns, true ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN error TEXT DEFAULT NULL AFTER catbox_url" );
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "ALTER TABLE {$table} MODIFY catbox_url VARCHAR(500) DEFAULT NULL" );
 	}
 
 	/**

@@ -35,6 +35,159 @@ class NC_Catbox_Syncer {
 		return $stats;
 	}
 
+	/** @return array<string, mixed> */
+	public function retry_upload( int $upload_id ): array {
+		$row = $this->uploads->get_by_id( $upload_id );
+		if ( null === $row ) {
+			return [ 'ok' => false, 'not_found' => true, 'error' => 'Upload not found' ];
+		}
+		if ( '' !== (string) ( $row['catbox_url'] ?? '' ) ) {
+			return [ 'ok' => true, 'already_done' => true, 'catbox_url' => (string) $row['catbox_url'] ];
+		}
+
+		$guid        = (string) ( $row['item_guid'] ?? '' );
+		$upload_type = (string) ( $row['upload_type'] ?? '' );
+		$original    = (string) ( $row['original_url'] ?? '' );
+		$item        = $this->items->get_by_guid( $guid ) ?? [];
+		$src_url     = $this->upload_source( $item, $upload_type, $original );
+
+		try {
+			$new_url = $this->catbox->upload_from_url( $src_url );
+		} catch ( NC_Catbox_Exception $e ) {
+			$this->uploads->set_result( $upload_id, null, $e->getMessage() );
+			return [ 'ok' => false, 'error' => $e->getMessage() ];
+		}
+
+		$published_at = $this->items->replace_media_url( $guid, $upload_type, $original, $new_url );
+		$this->uploads->set_result( $upload_id, $new_url, null );
+		$album_id = $this->assign_one_to_album( $new_url, $published_at );
+		return [ 'ok' => true, 'catbox_url' => $new_url, 'album_id' => $album_id ];
+	}
+
+	/** @return array<string, mixed> */
+	public function retry_item( int $item_id ): array {
+		$item = $this->items->get_by_id( $item_id );
+		if ( null === $item ) {
+			return [ 'ok' => false, 'not_found' => true ];
+		}
+		$guid        = (string) ( $item['guid'] ?? '' );
+		$source      = (string) ( $item['source'] ?? '' );
+		$source_name = (string) ( $item['source_name'] ?? '' );
+
+		$results = [];
+		foreach ( $this->pending_pieces( $item ) as [ $upload_type, $original ] ) {
+			$src_url = $this->upload_source( $item, $upload_type, $original );
+			try {
+				$new_url = $this->catbox->upload_from_url( $src_url );
+			} catch ( NC_Catbox_Exception $e ) {
+				$this->uploads->resolve_result( $source, $source_name, $guid, $upload_type, $original, null, $e->getMessage() );
+				$results[] = [ 'type' => $upload_type, 'error' => $e->getMessage() ];
+				continue;
+			}
+			$this->items->replace_media_url( $guid, $upload_type, $original, $new_url );
+			$this->uploads->resolve_result( $source, $source_name, $guid, $upload_type, $original, $new_url, null );
+			$this->assign_one_to_album( $new_url, (string) ( $item['published_at'] ?? '' ) );
+			$results[] = [ 'type' => $upload_type, 'catbox_url' => $new_url ];
+		}
+
+		$failed = 0;
+		foreach ( $results as $r ) {
+			if ( isset( $r['error'] ) ) {
+				$failed++;
+			}
+		}
+		return [
+			'ok'       => 0 === $failed,
+			'pending'  => count( $results ),
+			'uploaded' => count( $results ) - $failed,
+			'failed'   => $failed,
+			'results'  => $results,
+		];
+	}
+
+	private function assign_one_to_album( string $catbox_url, ?string $published_at ): ?string {
+		$month = substr( (string) $published_at, 0, 7 );
+		if ( '' === $month || strlen( $month ) !== 7 ) {
+			return null;
+		}
+		$album_id = $this->uploads->get_album_for_month( $month );
+		if ( '' === $album_id ) {
+			try {
+				$album_id = $this->catbox->create_album( NC_Plugin::catbox_album_name( $month ) );
+				$this->uploads->save_album_for_month( $month, $album_id );
+			} catch ( NC_Catbox_Exception $e ) {
+				return null;
+			}
+		}
+		try {
+			$this->catbox->add_to_album( $album_id, [ basename( $catbox_url ) ] );
+			$this->uploads->set_album( $catbox_url, $album_id );
+		} catch ( NC_Catbox_Exception $e ) {
+			return $album_id;
+		}
+		return $album_id;
+	}
+
+	// For an article cover, re-derive from the live og:image (stored URL may
+	// have expired), then fall back to a YouTube thumbnail.
+	/** @param array<string, mixed> $item */
+	private function upload_source( array $item, string $upload_type, string $original_url ): string {
+		if ( 'article_image' === $upload_type ) {
+			$article = is_array( $item['article'] ?? null ) ? $item['article'] : [];
+			$url     = (string) ( $article['url'] ?? '' );
+			if ( '' !== $url ) {
+				$fresh = NC_OG_Scraper::fetch( $url )['image'];
+				if ( '' !== $fresh ) {
+					return $fresh;
+				}
+				// og failed (e.g. YouTube consent page): derive from the video id.
+				$yt = NC_Feed_Parser::extract_youtube_id( $url );
+				if ( '' !== $yt ) {
+					return NC_OG_Scraper::youtube_thumbnail( $yt );
+				}
+			}
+			$ids = (array) ( $item['youtube_ids'] ?? [] );
+			if ( ! empty( $ids ) ) {
+				return NC_OG_Scraper::youtube_thumbnail( (string) $ids[0] );
+			}
+		}
+		return $original_url;
+	}
+
+	/**
+	 * @param array<string, mixed> $item
+	 * @return list<array{0:string, 1:string}>  [[upload_type, original_url], ...]
+	 */
+	private function pending_pieces( array $item ): array {
+		$pieces = [];
+		foreach ( (array) ( $item['images'] ?? [] ) as $url ) {
+			if ( $this->is_original( (string) $url ) ) {
+				$pieces[] = [ 'image', (string) $url ];
+			}
+		}
+		foreach ( (array) ( $item['videos'] ?? [] ) as $v ) {
+			$v = (array) $v;
+			if ( $this->is_original( (string) ( $v['poster_url'] ?? '' ) ) ) {
+				$pieces[] = [ 'poster', (string) $v['poster_url'] ];
+			}
+			// Skip too_big videos: they are intentionally not uploaded.
+			if ( ( $v['status'] ?? '' ) !== 'too_big'
+				&& '' !== (string) ( $v['original_url'] ?? '' )
+				&& ! $this->is_catbox( (string) ( $v['catbox_url'] ?? '' ) ) ) {
+				$pieces[] = [ 'video', (string) $v['original_url'] ];
+			}
+		}
+		$article = is_array( $item['article'] ?? null ) ? $item['article'] : null;
+		if ( is_array( $article ) && $this->is_original( (string) ( $article['image_url'] ?? '' ) ) ) {
+			$pieces[] = [ 'article_image', (string) $article['image_url'] ];
+		}
+		return $pieces;
+	}
+
+	private function is_original( string $url ): bool {
+		return '' !== $url && 0 === strpos( $url, 'http' ) && ! $this->is_catbox( $url );
+	}
+
 	// Phase 1
 
 	/**

@@ -6,6 +6,7 @@
  * @var array<int, array<string, mixed>> $albums
  * @var int                              $total_uploads
  * @var int                              $unassigned
+ * @var int                              $failed
  * @var array<string, mixed>|null        $sync_stats
  * @var string                           $msg
  * @var array<string, mixed>             $uploads_data
@@ -23,6 +24,9 @@ $msg_map = [
 	'covers_queued'   => [ 'success', __( 'Scanning for repeated images in Action Scheduler.', 'wp-news-collector' ) ],
 	'covers_ran'      => [ 'success', __( 'Repeated-image scan completed.', 'wp-news-collector' ) ],
 	'covers_saved'    => [ 'success', __( 'Cover selection saved.', 'wp-news-collector' ) ],
+	'retry_ok'        => [ 'success', __( 'Retry completed: upload succeeded.', 'wp-news-collector' ) ],
+	'retry_failed'    => [ 'error',   __( 'Retry failed: the upload could not be completed.', 'wp-news-collector' ) ],
+	'catbox_disabled' => [ 'error',   __( 'Catbox is disabled. Enable it in Settings first.', 'wp-news-collector' ) ],
 ];
 ?>
 <div class="wrap">
@@ -49,6 +53,10 @@ $msg_map = [
 	<div class="postbox" style="margin:0;padding:.75rem 1rem;min-width:140px;">
 		<p class="description" style="margin:0 0 2px"><?php esc_html_e( 'Albums', 'wp-news-collector' ); ?></p>
 		<strong style="font-size:1.4em"><?php echo count( $albums ); ?></strong>
+	</div>
+	<div class="postbox" style="margin:0;padding:.75rem 1rem;min-width:140px;">
+		<p class="description" style="margin:0 0 2px"><?php esc_html_e( 'Failed', 'wp-news-collector' ); ?></p>
+		<strong style="font-size:1.4em;color:<?php echo $failed > 0 ? '#b32d2e' : 'inherit'; ?>"><?php echo (int) $failed; ?></strong>
 	</div>
 </div>
 
@@ -225,6 +233,7 @@ $msg_map = [
 	$filters  = [
 		'all'        => __( 'All', 'wp-news-collector' ),
 		'unassigned' => __( 'No album', 'wp-news-collector' ),
+		'failed'     => sprintf( '%s (%d)', __( 'Failed', 'wp-news-collector' ), (int) $failed ),
 	];
 	$f_links = [];
 	foreach ( $filters as $fkey => $flabel ) {
@@ -250,16 +259,30 @@ $msg_map = [
 			<th style="width:100px"><?php esc_html_e( 'Type', 'wp-news-collector' ); ?></th>
 			<th style="width:140px"><?php esc_html_e( 'Source', 'wp-news-collector' ); ?></th>
 			<th style="width:90px"><?php esc_html_e( 'Album', 'wp-news-collector' ); ?></th>
+			<th><?php esc_html_e( 'Error', 'wp-news-collector' ); ?></th>
 			<th style="width:140px"><?php esc_html_e( 'Uploaded', 'wp-news-collector' ); ?></th>
 		</tr>
 	</thead>
 	<tbody>
 		<?php foreach ( $uploads_data['items'] as $upload ) : ?>
-		<tr>
+			<?php
+			$up_catbox = (string) ( $upload['catbox_url'] ?? '' );
+			$up_error  = (string) ( $upload['error'] ?? '' );
+			$is_failed = '' === $up_catbox;
+			?>
+		<tr<?php echo $is_failed ? ' style="background:#fcf0f1"' : ''; ?>>
 			<td>
-				<a href="<?php echo esc_url( (string) $upload['catbox_url'] ); ?>" target="_blank" rel="noreferrer noopener">
-					<?php echo esc_html( basename( (string) $upload['catbox_url'] ) ); ?>
-				</a>
+				<?php if ( $is_failed ) : ?>
+					<span style="color:#b32d2e;font-weight:600"><?php esc_html_e( 'Failed', 'wp-news-collector' ); ?></span>
+					<?php $orig = (string) ( $upload['original_url'] ?? '' ); ?>
+					<?php if ( '' !== $orig ) : ?>
+						<br><span class="description" style="word-break:break-all"><?php echo esc_html( $orig ); ?></span>
+					<?php endif; ?>
+				<?php else : ?>
+					<a href="<?php echo esc_url( $up_catbox ); ?>" target="_blank" rel="noreferrer noopener">
+						<?php echo esc_html( basename( $up_catbox ) ); ?>
+					</a>
+				<?php endif; ?>
 			</td>
 			<td><?php echo esc_html( (string) $upload['upload_type'] ); ?></td>
 			<td><?php echo esc_html( (string) ( $upload['source_name'] ?: $upload['source'] ) ); ?></td>
@@ -279,11 +302,41 @@ $msg_map = [
 					<span style="color:#888">—</span>
 				<?php endif; ?>
 			</td>
+			<td>
+				<?php if ( $is_failed ) : ?>
+					<?php if ( '' !== $up_error ) : ?>
+						<details class="nc-upload-error">
+							<summary style="cursor:pointer;color:#b32d2e"><?php esc_html_e( 'Show error', 'wp-news-collector' ); ?></summary>
+							<p class="description" style="margin:.4rem 0;word-break:break-word"><?php echo esc_html( $up_error ); ?></p>
+						</details>
+					<?php endif; ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:.25rem 0 0">
+						<?php wp_nonce_field( 'nc_retry_upload' ); ?>
+						<input type="hidden" name="action" value="nc_retry_upload" />
+						<input type="hidden" name="upload_id" value="<?php echo (int) $upload['id']; ?>" />
+						<button type="submit" class="button button-small"><?php esc_html_e( 'Retry', 'wp-news-collector' ); ?></button>
+					</form>
+				<?php else : ?>
+					<span style="color:#888">—</span>
+				<?php endif; ?>
+			</td>
 			<td><?php echo esc_html( (string) $upload['uploaded_at'] ); ?></td>
 		</tr>
 		<?php endforeach; ?>
 	</tbody>
 </table>
+<script>
+// Exclusive accordion: opening one row's error closes the others.
+document.querySelectorAll('.nc-upload-error').forEach(function (d) {
+	d.addEventListener('toggle', function () {
+		if (d.open) {
+			document.querySelectorAll('.nc-upload-error[open]').forEach(function (o) {
+				if (o !== d) { o.open = false; }
+			});
+		}
+	});
+});
+</script>
 
 <?php if ( (int) $uploads_data['total_pages'] > 1 ) : ?>
 <div class="tablenav bottom" style="margin-top:.5rem">

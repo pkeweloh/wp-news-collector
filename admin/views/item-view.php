@@ -27,13 +27,61 @@ $images  = (array) ( $item['images'] ?? [] );
 $article = is_array( $item['article'] ?? null ) ? $item['article'] : null;
 
 $valid_statuses = [ 'pending', 'ok', 'upload_failed', 'too_big' ];
+
+$settings       = (array) get_option( 'nc_settings', [] );
+$catbox_enabled = ! empty( $settings['catbox_enabled'] );
+
+// A media piece still on a non-Catbox http URL means its upload is pending/failed.
+$is_pending_url = static function ( string $url ): bool {
+	return '' !== $url && 0 === strpos( $url, 'http' ) && 0 !== strpos( $url, 'https://files.catbox.moe/' );
+};
+$has_pending = false;
+foreach ( $images as $img_url ) {
+	if ( $is_pending_url( (string) $img_url ) ) {
+		$has_pending = true;
+		break;
+	}
+}
+foreach ( $videos as $video ) {
+	$video = (array) $video;
+	if ( $is_pending_url( (string) ( $video['poster_url'] ?? '' ) ) ) {
+		$has_pending = true;
+	}
+	if ( ( $video['status'] ?? '' ) !== 'too_big'
+		&& '' !== (string) ( $video['original_url'] ?? '' )
+		&& 0 !== strpos( (string) ( $video['catbox_url'] ?? '' ), 'https://files.catbox.moe/' ) ) {
+		$has_pending = true;
+	}
+}
+if ( is_array( $article ) && $is_pending_url( (string) ( $article['image_url'] ?? '' ) ) ) {
+	$has_pending = true;
+}
+
+$item_msg_map = [
+	'media_saved'     => [ 'success', __( 'Media saved successfully.', 'wp-news-collector' ) ],
+	'retry_ok'        => [ 'success', __( 'Retry completed: pending uploads succeeded.', 'wp-news-collector' ) ],
+	'retry_partial'   => [ 'warning', __( 'Retry finished with some uploads still failing.', 'wp-news-collector' ) ],
+	'retry_none'      => [ 'info',    __( 'Nothing to retry: no pending uploads for this item.', 'wp-news-collector' ) ],
+	'retry_failed'    => [ 'error',   __( 'Retry failed.', 'wp-news-collector' ) ],
+	'catbox_disabled' => [ 'error',   __( 'Catbox is disabled. Enable it in Settings first.', 'wp-news-collector' ) ],
+];
 ?>
 <div class="wrap nc-wrap">
 <h1><?php printf( esc_html__( 'Item #%d', 'wp-news-collector' ), $id ); ?></h1>
 <p><a href="<?php echo esc_url( $back ); ?>" class="button">&laquo; <?php esc_html_e( 'Back to items', 'wp-news-collector' ); ?></a></p>
 
-<?php if ( 'media_saved' === $msg ) : ?>
-	<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Media saved successfully.', 'wp-news-collector' ); ?></p></div>
+<?php if ( isset( $item_msg_map[ $msg ] ) ) : ?>
+	<div class="notice notice-<?php echo esc_attr( $item_msg_map[ $msg ][0] ); ?> is-dismissible"><p><?php echo esc_html( $item_msg_map[ $msg ][1] ); ?></p></div>
+<?php endif; ?>
+
+<?php if ( $catbox_enabled && $has_pending ) : ?>
+	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0 0 1rem">
+		<?php wp_nonce_field( 'nc_retry_item_uploads_' . $id ); ?>
+		<input type="hidden" name="action" value="nc_retry_item_uploads" />
+		<input type="hidden" name="item_id" value="<?php echo $id; ?>" />
+		<button type="submit" class="button button-secondary"><?php esc_html_e( 'Retry Catbox uploads', 'wp-news-collector' ); ?></button>
+		<span class="description" style="margin-left:.5rem"><?php esc_html_e( 'Some media is still on its original URL.', 'wp-news-collector' ); ?></span>
+	</form>
 <?php endif; ?>
 
 <!-- -----------------------------------------------------------------------

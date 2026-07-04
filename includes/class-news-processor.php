@@ -138,15 +138,16 @@ class NC_News_Processor {
 		$source_name = (string) ( $item['source_name'] ?? '' );
 		$guid        = (string) ( $item['guid'] ?? '' );
 
-		// 1) OG fetch for article URL (always: gives site_name; fallback image too).
+		// 1) Prefer og:image as the article cover; the URL Telegram embeds expires.
 		$article = $item['article'];
 		if ( is_array( $article ) && '' !== ( $article['url'] ?? '' ) ) {
 			$og = NC_OG_Scraper::fetch( (string) $article['url'] );
 			if ( '' !== $og['site_name'] ) {
 				$article['site_name'] = $og['site_name'];
 			}
-			if ( empty( $item['images'] ) && '' !== $og['image'] ) {
-				$item['images'] = [ $og['image'] ];
+			$cover = '' !== $og['image'] ? $og['image'] : $this->youtube_cover( $item );
+			if ( '' !== $cover ) {
+				$article['image_url'] = $cover;
 			}
 			$item['article'] = $article;
 		}
@@ -525,6 +526,12 @@ class NC_News_Processor {
 	/**
 	 * @param array{fetched:int, inserted:int, skipped:int, errors:string[]} $stats
 	 */
+	/** @param array<string, mixed> $item */
+	private function youtube_cover( array $item ): string {
+		$ids = (array) ( $item['youtube_ids'] ?? [] );
+		return empty( $ids ) ? '' : NC_OG_Scraper::youtube_thumbnail( (string) $ids[0] );
+	}
+
 	private function try_upload(
 		string $url,
 		array &$stats,
@@ -541,6 +548,10 @@ class NC_News_Processor {
 			return $catbox_url;
 		} catch ( NC_Catbox_Exception $e ) {
 			$stats['errors'][] = sprintf( 'Catbox upload failed (%s): %s', $url, $e->getMessage() );
+			if ( $this->uploads ) {
+				// Track the failure so it can be surfaced and retried from admin.
+				$this->uploads->resolve_result( $source, $source_name, $guid, $upload_type, $url, null, $e->getMessage() );
+			}
 			return '';
 		}
 	}

@@ -461,3 +461,42 @@ msgstr "Análisis de imágenes repetidas completado."
 msgid "Cover selection saved."
 msgstr "Selección de portadas guardada."
 
+
+msgid "Failed"
+msgstr "Fallidas"
+
+msgid "Error"
+msgstr "Error"
+
+msgid "Show error"
+msgstr "Ver error"
+
+msgid "Retry"
+msgstr "Reintentar"
+
+msgid "Retry completed: upload succeeded."
+msgstr "Reintento completado: la subida tuvo éxito."
+
+msgid "Retry failed: the upload could not be completed."
+msgstr "Reintento fallido: no se pudo completar la subida."
+
+msgid "Catbox is disabled. Enable it in Settings first."
+msgstr "Catbox está desactivado. Actívalo primero en Ajustes."
+
+msgid "Retry Catbox uploads"
+msgstr "Reintentar subidas a Catbox"
+
+msgid "Some media is still on its original URL."
+msgstr "Algún medio sigue en su URL original."
+
+msgid "Retry completed: pending uploads succeeded."
+msgstr "Reintento completado: las subidas pendientes tuvieron éxito."
+
+msgid "Retry finished with some uploads still failing."
+msgstr "El reintento terminó con algunas subidas aún fallidas."
+
+msgid "Nothing to retry: no pending uploads for this item."
+msgstr "Nada que reintentar: no hay subidas pendientes para este ítem."
+
+msgid "Retry failed."
+msgstr "Reintento fallido."
