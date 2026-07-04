@@ -176,6 +176,8 @@ class NC_Admin {
 		check_admin_referer( 'bulk-items' );
 		$ids    = isset( $_POST['item_ids'] ) ? array_map( 'intval', (array) $_POST['item_ids'] ) : [];
 		$action = isset( $_POST['bulk_action'] ) ? sanitize_key( (string) $_POST['bulk_action'] ) : '';
+		$retry_uploaded = 0;
+		$retry_failed   = 0;
 		switch ( $action ) {
 			case 'delete':
 				$this->items->bulk_delete( $ids );
@@ -187,28 +189,29 @@ class NC_Admin {
 				$this->items->bulk_set_enabled( $ids, true );
 				break;
 			case 'retry_catbox':
-				if ( ! empty( $ids ) ) {
-					$settings = NC_Plugin::get_settings();
-					if ( ! empty( $settings['catbox_enabled'] ) ) {
-						if ( function_exists( 'as_enqueue_async_action' ) ) {
-							as_enqueue_async_action( 'nc_backfill_catbox_ids', [ $ids ], 'nc' );
-						} else {
-							$this->processor->backfill_catbox( $ids );
-						}
+				$settings = NC_Plugin::get_settings();
+				if ( ! empty( $ids ) && ! empty( $settings['catbox_enabled'] ) ) {
+					// Run synchronously (like the single-item button) so results are
+					// immediate and do not depend on the Action Scheduler queue.
+					foreach ( $ids as $rid ) {
+						$res             = $this->syncer->retry_item( $rid );
+						$retry_uploaded += (int) ( $res['uploaded'] ?? 0 );
+						$retry_failed   += (int) ( $res['failed'] ?? 0 );
 					}
 				}
 				break;
 		}
-		$redirect = add_query_arg(
-			[
-				'page'   => 'nc_items',
-				'nc_msg' => 'bulk_' . $action,
-				'vf'     => isset( $_POST['vf'] ) ? sanitize_key( (string) $_POST['vf'] ) : 'all',
-				'paged'  => isset( $_POST['paged'] ) ? (int) $_POST['paged'] : 1,
-			],
-			admin_url( 'admin.php' )
-		);
-		wp_safe_redirect( $redirect );
+		$redirect_args = [
+			'page'   => 'nc_items',
+			'nc_msg' => 'bulk_' . $action,
+			'vf'     => isset( $_POST['vf'] ) ? sanitize_key( (string) $_POST['vf'] ) : 'all',
+			'paged'  => isset( $_POST['paged'] ) ? (int) $_POST['paged'] : 1,
+		];
+		if ( 'retry_catbox' === $action ) {
+			$redirect_args['nc_up']   = $retry_uploaded;
+			$redirect_args['nc_fail'] = $retry_failed;
+		}
+		wp_safe_redirect( add_query_arg( $redirect_args, admin_url( 'admin.php' ) ) );
 		exit;
 	}
 

@@ -500,3 +500,6 @@ msgstr "Nada que reintentar: no hay subidas pendientes para este ítem."
 
 msgid "Retry failed."
 msgstr "Reintento fallido."
+
+msgid "Retry Catbox: %1$d uploaded, %2$d failed."
+msgstr "Reintento Catbox: %1$d subidas, %2$d fallidas."

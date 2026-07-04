@@ -9,6 +9,8 @@
  * @var int $paged
  * @var string $msg
  * @var array<string, int> $filter_counts
+ * @var int $bulk_uploaded
+ * @var int $bulk_failed
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -23,7 +25,16 @@ $filters = [
 <div class="wrap nc-wrap">
 	<h1><?php esc_html_e( 'News Collector: Items', 'wp-news-collector' ); ?></h1>
 
-	<?php if ( '' !== $msg ) : ?>
+	<?php if ( 'bulk_retry_catbox' === $msg ) : ?>
+		<div class="notice notice-<?php echo $bulk_failed > 0 ? 'warning' : 'success'; ?> is-dismissible"><p><?php
+			echo esc_html( sprintf(
+				/* translators: 1: uploaded count, 2: failed count */
+				__( 'Retry Catbox: %1$d uploaded, %2$d failed.', 'wp-news-collector' ),
+				$bulk_uploaded,
+				$bulk_failed
+			) );
+		?></p></div>
+	<?php elseif ( '' !== $msg ) : ?>
 		<div class="notice notice-success is-dismissible"><p><?php
 			echo esc_html( sprintf( __( 'Action completed: %s', 'wp-news-collector' ), $msg ) );
 		?></p></div>
