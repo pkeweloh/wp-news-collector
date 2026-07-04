@@ -316,6 +316,13 @@ class NC_Item_Repository {
 			AND JSON_UNQUOTE(JSON_EXTRACT(article, '$.image_url')) LIKE 'http%'
 			AND JSON_UNQUOTE(JSON_EXTRACT(article, '$.image_url')) NOT LIKE 'https://files.catbox.moe/%'
 		)
+		OR EXISTS (
+			SELECT 1 FROM JSON_TABLE(
+				CASE WHEN JSON_VALID(videos) THEN videos ELSE '[]' END,
+				'$[*]' COLUMNS ( poster VARCHAR(500) PATH '$.poster_url' )
+			) jv
+			WHERE jv.poster LIKE 'http%' AND jv.poster NOT LIKE 'https://files.catbox.moe/%'
+		)
 	)";
 
 	/**
