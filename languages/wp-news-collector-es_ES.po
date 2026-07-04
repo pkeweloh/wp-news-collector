@@ -503,3 +503,15 @@ msgstr "Reintento fallido."
 
 msgid "Retry Catbox: %1$d uploaded, %2$d failed."
 msgstr "Reintento Catbox: %1$d subidas, %2$d fallidas."
+
+msgid "Cover image"
+msgstr "Imagen de portada"
+
+msgid "Title"
+msgstr "Título"
+
+msgid "Site name"
+msgstr "Nombre del sitio"
+
+msgid "URL"
+msgstr "URL"

@@ -288,6 +288,26 @@ class NC_Admin {
 		$item = $this->items->get_by_id( $id );
 		if ( $item ) {
 			$article = is_array( $item['article'] ?? null ) ? $item['article'] : null;
+			if ( isset( $_POST['article'] ) && is_array( $_POST['article'] ) ) {
+				$posted               = wp_unslash( $_POST['article'] );
+				$article              = is_array( $article ) ? $article : [];
+				$article['image_url'] = esc_url_raw( (string) ( $posted['image_url'] ?? '' ) );
+				$article['url']       = esc_url_raw( (string) ( $posted['url'] ?? '' ) );
+				$article['title']     = sanitize_text_field( (string) ( $posted['title'] ?? '' ) );
+				$article['site_name'] = sanitize_text_field( (string) ( $posted['site_name'] ?? '' ) );
+				$article['text']      = sanitize_textarea_field( (string) ( $posted['text'] ?? '' ) );
+				// Drop the article entirely if every editable field is now empty.
+				$empty = true;
+				foreach ( [ 'image_url', 'url', 'title', 'site_name', 'text' ] as $k ) {
+					if ( '' !== (string) $article[ $k ] ) {
+						$empty = false;
+						break;
+					}
+				}
+				if ( $empty ) {
+					$article = null;
+				}
+			}
 			$this->items->update_media( $id, $images, $videos, $article );
 		}
 

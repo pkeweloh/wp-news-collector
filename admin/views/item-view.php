@@ -200,25 +200,47 @@ $item_msg_map = [
 		</button>
 	</p>
 
+	<!-- Article -->
+	<?php if ( $article ) : ?>
+	<h2 style="margin-top:1.5rem"><?php esc_html_e( 'Article', 'wp-news-collector' ); ?></h2>
+	<div style="padding:12px;background:#fff;border:1px solid #ccd0d4;max-width:700px">
+		<table class="form-table" style="margin:0">
+			<tr>
+				<th style="width:120px;padding:4px 0"><?php esc_html_e( 'Cover image', 'wp-news-collector' ); ?></th>
+				<td style="padding:4px 0;display:flex;align-items:center;gap:8px">
+					<?php $art_img = (string) ( $article['image_url'] ?? '' ); ?>
+					<?php if ( '' !== $art_img ) : ?>
+						<img src="<?php echo esc_url( $art_img ); ?>" style="width:48px;height:48px;object-fit:cover;border:1px solid #ccd0d4;flex-shrink:0" loading="lazy" />
+					<?php endif; ?>
+					<input type="text" name="article[image_url]" value="<?php echo esc_attr( $art_img ); ?>"
+						placeholder="https://files.catbox.moe/…"
+						style="flex:1;font-family:monospace;font-size:.85em" />
+				</td>
+			</tr>
+			<tr>
+				<th style="padding:4px 0"><?php esc_html_e( 'Title', 'wp-news-collector' ); ?></th>
+				<td style="padding:4px 0"><input type="text" name="article[title]" value="<?php echo esc_attr( (string) ( $article['title'] ?? '' ) ); ?>" style="width:100%" /></td>
+			</tr>
+			<tr>
+				<th style="padding:4px 0"><?php esc_html_e( 'Site name', 'wp-news-collector' ); ?></th>
+				<td style="padding:4px 0"><input type="text" name="article[site_name]" value="<?php echo esc_attr( (string) ( $article['site_name'] ?? '' ) ); ?>" style="width:100%" /></td>
+			</tr>
+			<tr>
+				<th style="padding:4px 0"><?php esc_html_e( 'URL', 'wp-news-collector' ); ?></th>
+				<td style="padding:4px 0"><input type="url" name="article[url]" value="<?php echo esc_attr( (string) ( $article['url'] ?? '' ) ); ?>" style="width:100%;font-family:monospace;font-size:.85em" /></td>
+			</tr>
+			<tr>
+				<th style="padding:4px 0"><?php esc_html_e( 'Text', 'wp-news-collector' ); ?></th>
+				<td style="padding:4px 0"><textarea name="article[text]" rows="3" style="width:100%"><?php echo esc_textarea( (string) ( $article['text'] ?? '' ) ); ?></textarea></td>
+			</tr>
+		</table>
+	</div>
+	<?php endif; ?>
+
 	<p style="margin-top:1.5rem">
 		<?php submit_button( __( 'Save media', 'wp-news-collector' ), 'primary', 'submit', false ); ?>
 	</p>
 </form>
-
-<!-- -----------------------------------------------------------------------
-     Article (readonly)
---------------------------------------------------------------------- -->
-<?php if ( $article ) : ?>
-<h2><?php esc_html_e( 'Article', 'wp-news-collector' ); ?></h2>
-<div style="padding:12px;background:#fff;border:1px solid #ccd0d4;max-width:700px;margin-bottom:1.5rem">
-	<?php if ( ! empty( $article['image_url'] ) ) : ?>
-		<img src="<?php echo esc_url( (string) $article['image_url'] ); ?>" style="max-width:100%;margin-bottom:8px;display:block" />
-	<?php endif; ?>
-	<p style="margin:0 0 4px;font-weight:700"><?php echo esc_html( (string) ( $article['title'] ?? '' ) ); ?></p>
-	<p style="margin:0 0 4px;color:#666;font-size:.85em"><?php echo esc_html( (string) ( $article['site_name'] ?? $article['url'] ?? '' ) ); ?></p>
-	<p style="margin:0"><?php echo esc_html( (string) ( $article['text'] ?? '' ) ); ?></p>
-</div>
-<?php endif; ?>
 
 <?php if ( ! empty( $item['youtube_ids'] ) ) : ?>
 <h2>YouTube</h2>
