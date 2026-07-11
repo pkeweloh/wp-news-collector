@@ -160,6 +160,7 @@ class NC_Items_Page {
 		$msg = isset( $_GET['nc_msg'] ) ? sanitize_key( (string) $_GET['nc_msg'] ) : '';
 		$bulk_uploaded = isset( $_GET['nc_up'] ) ? max( 0, (int) $_GET['nc_up'] ) : 0;
 		$bulk_failed   = isset( $_GET['nc_fail'] ) ? max( 0, (int) $_GET['nc_fail'] ) : 0;
+		$last_run      = (array) get_option( 'nc_last_run', [] );
 		include NC_PLUGIN_DIR . 'admin/views/items-list.php';
 	}
 }

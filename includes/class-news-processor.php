@@ -50,7 +50,29 @@ class NC_News_Processor {
 		foreach ( $this->sources->get_active() as $src ) {
 			$this->run_for_source( (string) $src['url'], (string) $src['name'], $stats, $album_id );
 		}
+		$this->save_last_run( $stats );
 		return $stats;
+	}
+
+	/**
+	 * Persist a compact summary of the cycle. A scheduled run discards the return
+	 * value, so without this a fetch failure (e.g. an RSSHub 503 for a channel
+	 * with no public preview) would never surface anywhere the admin can see.
+	 *
+	 * @param array{fetched:int, inserted:int, skipped:int, errors:string[]} $stats
+	 */
+	private function save_last_run( array $stats ): void {
+		update_option(
+			'nc_last_run',
+			[
+				'at'       => gmdate( 'Y-m-d H:i:s' ),
+				'fetched'  => $stats['fetched'],
+				'inserted' => $stats['inserted'],
+				'skipped'  => $stats['skipped'],
+				'errors'   => array_slice( array_values( $stats['errors'] ), 0, 50 ),
+			],
+			false
+		);
 	}
 
 	/**

@@ -11,6 +11,7 @@
  * @var array<string, int> $filter_counts
  * @var int $bulk_uploaded
  * @var int $bulk_failed
+ * @var array<string, mixed> $last_run
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -24,6 +25,32 @@ $filters = [
 ?>
 <div class="wrap nc-wrap">
 	<h1><?php esc_html_e( 'News Collector: Items', 'wp-news-collector' ); ?></h1>
+
+	<?php if ( ! empty( $last_run ) ) : ?>
+		<?php $lr_errors = (array) ( $last_run['errors'] ?? [] ); ?>
+		<div class="notice notice-<?php echo empty( $lr_errors ) ? 'info' : 'warning'; ?> inline" style="margin:1rem 0">
+			<p style="margin:.5em 0"><?php
+				echo esc_html( sprintf(
+					/* translators: 1: date, 2: fetched, 3: new, 4: skipped */
+					__( 'Last fetch %1$s: %2$d items fetched, %3$d new, %4$d skipped.', 'wp-news-collector' ),
+					get_date_from_gmt( (string) ( $last_run['at'] ?? '' ), 'Y-m-d H:i' ),
+					(int) ( $last_run['fetched'] ?? 0 ),
+					(int) ( $last_run['inserted'] ?? 0 ),
+					(int) ( $last_run['skipped'] ?? 0 )
+				) );
+			?></p>
+			<?php if ( ! empty( $lr_errors ) ) : ?>
+				<details style="margin:0 0 .5em">
+					<summary style="cursor:pointer;color:#b32d2e"><?php printf( esc_html__( '%d errors', 'wp-news-collector' ), count( $lr_errors ) ); ?></summary>
+					<ul style="margin:.5em 0 0 1.5em;list-style:disc">
+						<?php foreach ( $lr_errors as $err ) : ?>
+							<li><code><?php echo esc_html( (string) $err ); ?></code></li>
+						<?php endforeach; ?>
+					</ul>
+				</details>
+			<?php endif; ?>
+		</div>
+	<?php endif; ?>
 
 	<?php if ( 'bulk_retry_catbox' === $msg ) : ?>
 		<div class="notice notice-<?php echo $bulk_failed > 0 ? 'warning' : 'success'; ?> is-dismissible"><p><?php
