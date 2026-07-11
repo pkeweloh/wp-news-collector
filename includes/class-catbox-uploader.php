@@ -12,6 +12,7 @@ class NC_Catbox_Exception extends RuntimeException {}
 class NC_Catbox_Uploader {
 
 	private const ENDPOINT          = 'https://catbox.moe/user/api.php';
+	private const FILE_PREFIX       = 'https://files.catbox.moe/';
 	private const UPLOAD_TIMEOUT    = 60;
 	private const DOWNLOAD_TIMEOUT  = 120;
 	private const MIN_BYTES         = 512; // small responses are typically error HTML
@@ -113,8 +114,10 @@ class NC_Catbox_Uploader {
 		return [ $body, self::suffix_for( $url, $content_type ) ];
 	}
 
-	// Catbox keeps the filename's extension, so an extension-less URL must
-	// derive one from the Content-Type rather than upload a bare temp name.
+	/**
+	 * Catbox keeps the filename's extension, so an extension-less URL must derive
+	 * one from the Content-Type rather than upload a bare temp name.
+	 */
 	private static function suffix_for( string $url, string $content_type ): string {
 		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
 		$ext  = strtolower( preg_replace( '~[^A-Za-z0-9]~', '', pathinfo( $path, PATHINFO_EXTENSION ) ) );
@@ -125,7 +128,7 @@ class NC_Catbox_Uploader {
 		return self::EXT_BY_MIME[ $base ] ?? '.bin';
 	}
 
-	// Catbox rejects non-ASCII (unicode/emoji) filenames.
+	/** Catbox rejects non-ASCII (unicode/emoji) filenames. */
 	private static function sanitize_filename( string $name ): string {
 		$dot  = strrpos( $name, '.' );
 		$stem = false === $dot ? $name : substr( $name, 0, $dot );
@@ -141,23 +144,52 @@ class NC_Catbox_Uploader {
 		return substr( $stem, 0, 80 ) . $ext;
 	}
 
+	/**
+	 * Upload a local file and return its Catbox CDN URL.
+	 *
+	 * Catbox dedupes by content, so re-uploading a truncated file returns the same
+	 * corrupt URL; we verify the stored size and delete before retrying. Needs a
+	 * userhash to verify and delete.
+	 */
 	private function upload_file( string $path ): string {
-		$filename  = self::sanitize_filename( basename( $path ) );
-		$mime      = $this->guess_mime( $path );
-		$boundary  = 'CatboxBoundary' . wp_generate_password( 12, false );
-		$content   = file_get_contents( $path );
+		$filename = self::sanitize_filename( basename( $path ) );
+		$mime     = $this->guess_mime( $path );
+		$content  = file_get_contents( $path );
 		if ( false === $content ) {
 			throw new NC_Catbox_Exception( 'Cannot read temp file' );
 		}
 
+		$boundary = 'CatboxBoundary' . wp_generate_password( 12, false );
+		$body     = $this->build_upload_body( $boundary, $filename, $mime, $content );
+		$url      = $this->send_upload( $boundary, $body );
+		if ( '' === $this->userhash ) {
+			return $url;
+		}
+
+		$expected = strlen( $content );
+		if ( $this->stored_ok( $url, $expected ) ) {
+			return $url;
+		}
+		$this->delete_quietly( $url );
+		$url = $this->send_upload( $boundary, $body );
+		if ( $this->stored_ok( $url, $expected ) ) {
+			return $url;
+		}
+		$this->delete_quietly( $url );
+		throw new NC_Catbox_Exception( 'Upload verification failed: stored file does not match the ' . $expected . ' bytes sent' );
+	}
+
+	private function build_upload_body( string $boundary, string $filename, string $mime, string $content ): string {
 		$parts = '';
 		if ( '' !== $this->userhash ) {
 			$parts .= "--{$boundary}\r\nContent-Disposition: form-data; name=\"userhash\"\r\n\r\n{$this->userhash}\r\n";
 		}
 		$parts .= "--{$boundary}\r\nContent-Disposition: form-data; name=\"reqtype\"\r\n\r\nfileupload\r\n";
 		$parts .= "--{$boundary}\r\nContent-Disposition: form-data; name=\"fileToUpload\"; filename=\"{$filename}\"\r\nContent-Type: {$mime}\r\n\r\n";
-		$body   = $parts . $content . "\r\n--{$boundary}--\r\n";
+		return $parts . $content . "\r\n--{$boundary}--\r\n";
+	}
 
+	private function send_upload( string $boundary, string $body ): string {
 		$response = wp_remote_post(
 			self::ENDPOINT,
 			[
@@ -171,14 +203,97 @@ class NC_Catbox_Uploader {
 		}
 		$out = trim( (string) wp_remote_retrieve_body( $response ) );
 
-		// Mirror the Python client: trust the body if it looks like a Catbox URL,
-		// regardless of HTTP status: Catbox sometimes returns 5xx alongside a
-		// valid URL when the upload actually succeeded.
-		if ( 0 === strpos( $out, 'https://files.catbox.moe/' ) ) {
+		// Catbox may return 5xx with a valid URL; trust the body and let stored_ok() verify.
+		if ( 0 === strpos( $out, self::FILE_PREFIX ) ) {
 			return $out;
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		throw new NC_Catbox_Exception( 'Catbox unexpected response (HTTP ' . $code . '): ' . $out );
+	}
+
+	/**
+	 * Whether Catbox serves a file of the expected size (false = heal it).
+	 *
+	 * Catbox answers HEAD with Content-Length: 0 even for healthy files, so the
+	 * size is read with a ranged GET (bytes=0-0 avoids fetching a whole video).
+	 */
+	private function stored_ok( string $url, int $expected_len ): bool {
+		if ( 0 !== strpos( $url, self::FILE_PREFIX ) ) {
+			return true;
+		}
+		$response = wp_remote_get(
+			$url,
+			[
+				'timeout' => self::UPLOAD_TIMEOUT,
+				'headers' => [
+					'User-Agent' => 'Mozilla/5.0',
+					'Range'      => 'bytes=0-0',
+				],
+			]
+		);
+		if ( is_wp_error( $response ) ) {
+			return false;
+		}
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		if ( $code < 200 || $code >= 300 ) {
+			return false;
+		}
+		$range = (string) wp_remote_retrieve_header( $response, 'content-range' );
+		if ( 1 === preg_match( '~/(\d+)\s*$~', $range, $m ) ) {
+			return (int) $m[1] === $expected_len;
+		}
+		$length = wp_remote_retrieve_header( $response, 'content-length' );
+		if ( '' === $length || null === $length ) {
+			return true;
+		}
+		return (int) $length === $expected_len;
+	}
+
+	/** Best-effort delete of a Catbox file by URL; ignores API errors. */
+	private function delete_quietly( string $url ): void {
+		if ( 0 !== strpos( $url, self::FILE_PREFIX ) ) {
+			return;
+		}
+		try {
+			$this->delete_files( [ basename( $url ) ] );
+		} catch ( NC_Catbox_Exception $e ) {
+			unset( $e );
+		}
+	}
+
+	/**
+	 * Delete files from the account by bare filename (e.g. 'abc123.jpg'), not
+	 * full URL. Requires userhash.
+	 *
+	 * @param string[] $filenames
+	 * @throws NC_Catbox_Exception
+	 */
+	public function delete_files( array $filenames ): void {
+		if ( '' === $this->userhash ) {
+			throw new NC_Catbox_Exception( 'User hash required to delete files' );
+		}
+		$filenames = array_values( array_filter( $filenames, static fn( $f ) => '' !== (string) $f ) );
+		if ( empty( $filenames ) ) {
+			return;
+		}
+		$boundary  = 'CatboxBoundary' . wp_generate_password( 12, false );
+		$files_str = implode( ' ', $filenames );
+		$parts  = "--{$boundary}\r\nContent-Disposition: form-data; name=\"reqtype\"\r\n\r\ndeletefiles\r\n";
+		$parts .= "--{$boundary}\r\nContent-Disposition: form-data; name=\"userhash\"\r\n\r\n{$this->userhash}\r\n";
+		$parts .= "--{$boundary}\r\nContent-Disposition: form-data; name=\"files\"\r\n\r\n{$files_str}\r\n";
+		$body   = $parts . "--{$boundary}--\r\n";
+
+		$response = wp_remote_post(
+			self::ENDPOINT,
+			[
+				'timeout' => self::UPLOAD_TIMEOUT,
+				'headers' => [ 'Content-Type' => 'multipart/form-data; boundary=' . $boundary ],
+				'body'    => $body,
+			]
+		);
+		if ( is_wp_error( $response ) ) {
+			throw new NC_Catbox_Exception( 'Delete failed: ' . $response->get_error_message() );
+		}
 	}
 
 	/**
