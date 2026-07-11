@@ -99,6 +99,24 @@ class NC_News_Processor {
 		return $album_id;
 	}
 
+	/** Extract a short reason from an error response body (RSSHub puts the cause after an "Error:" label). */
+	private static function error_reason_from_body( string $body ): string {
+		if ( '' === $body ) {
+			return '';
+		}
+		// Space before each tag so an in-tag URL and a following "Route:" don't glue together.
+		$text = trim( (string) preg_replace( '~\s+~', ' ', wp_strip_all_tags( str_replace( '<', ' <', $body ) ) ) );
+		$pos  = stripos( $text, 'Error:' );
+		if ( false !== $pos ) {
+			$text = trim( substr( $text, $pos ) );
+		}
+		$route = stripos( $text, ' Route:' ); // Drop RSSHub's "Route: … Node Version: …" debug tail.
+		if ( false !== $route ) {
+			$text = trim( substr( $text, 0, $route ) );
+		}
+		return mb_substr( $text, 0, 200 );
+	}
+
 	/**
 	 * @param array{fetched:int, inserted:int, skipped:int, errors:string[]} $stats
 	 */
@@ -110,7 +128,10 @@ class NC_News_Processor {
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 ) {
-			$stats['errors'][] = sprintf( 'RSS HTTP %d (%s)', $code, $rss_url );
+			$reason = self::error_reason_from_body( (string) wp_remote_retrieve_body( $response ) );
+			$stats['errors'][] = '' !== $reason
+				? sprintf( 'RSS HTTP %d (%s): %s', $code, $rss_url, $reason )
+				: sprintf( 'RSS HTTP %d (%s)', $code, $rss_url );
 			return;
 		}
 		$body = (string) wp_remote_retrieve_body( $response );

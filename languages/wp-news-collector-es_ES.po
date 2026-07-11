@@ -16,8 +16,10 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: wp-news-collector\n"
 
-msgid "%d errors"
-msgstr "%d errores"
+msgid "%d error"
+msgid_plural "%d errors"
+msgstr[0] "%d error"
+msgstr[1] "%d errores"
 
 msgid "%d items"
 msgstr "%d ítems"

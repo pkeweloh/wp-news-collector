@@ -78,8 +78,9 @@ $msg_map = [
 			?>
 		</p>
 		<?php if ( ! empty( $sync_stats['errors'] ) ) : ?>
+			<?php $sync_err_n = count( $sync_stats['errors'] ); ?>
 			<details>
-				<summary style="cursor:pointer;color:#b32d2e"><?php printf( esc_html__( '%d errors', 'wp-news-collector' ), count( $sync_stats['errors'] ) ); ?></summary>
+				<summary style="cursor:pointer;color:#b32d2e"><?php echo esc_html( sprintf( _n( '%d error', '%d errors', $sync_err_n, 'wp-news-collector' ), $sync_err_n ) ); ?></summary>
 				<ul style="margin:.5rem 0 0 1rem">
 					<?php foreach ( (array) $sync_stats['errors'] as $err ) : ?>
 						<li><?php echo esc_html( (string) $err ); ?></li>

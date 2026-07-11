@@ -40,8 +40,9 @@ $filters = [
 				) );
 			?></p>
 			<?php if ( ! empty( $lr_errors ) ) : ?>
+				<?php $lr_n = count( $lr_errors ); ?>
 				<details style="margin:0 0 .5em">
-					<summary style="cursor:pointer;color:#b32d2e"><?php printf( esc_html__( '%d errors', 'wp-news-collector' ), count( $lr_errors ) ); ?></summary>
+					<summary style="cursor:pointer;color:#b32d2e"><?php echo esc_html( sprintf( _n( '%d error', '%d errors', $lr_n, 'wp-news-collector' ), $lr_n ) ); ?></summary>
 					<ul style="margin:.5em 0 0 1.5em;list-style:disc">
 						<?php foreach ( $lr_errors as $err ) : ?>
 							<li><code><?php echo esc_html( (string) $err ); ?></code></li>
