@@ -202,6 +202,9 @@ msgstr "Cargar más"
 msgid "Loading…"
 msgstr "Cargando…"
 
+msgid "Lock"
+msgstr "Bloquear"
+
 msgid "Max items per source per cycle"
 msgstr "Máximo de ítems por fuente por ciclo"
 

@@ -309,6 +309,21 @@ class NC_Admin {
 				}
 			}
 			$this->items->update_media( $id, $images, $videos, $article );
+
+			// The main text is a locked field: the form always posts it, so save
+			// the (possibly edited) value with the same tags the view renders.
+			if ( isset( $_POST['text'] ) ) {
+				$allowed_text = [
+					'b'      => [],
+					'strong' => [],
+					'i'      => [],
+					'em'     => [],
+					'br'     => [],
+					'p'      => [],
+					'a'      => [ 'href' => true, 'target' => true, 'rel' => true ],
+				];
+				$this->items->update_text( $id, wp_kses( (string) wp_unslash( $_POST['text'] ), $allowed_text ) );
+			}
 		}
 
 		wp_safe_redirect(

@@ -226,6 +226,18 @@ class NC_Item_Repository {
 		return false !== $rows;
 	}
 
+	public function update_text( int $id, string $text ): bool {
+		global $wpdb;
+		$rows = $wpdb->update(
+			$this->table,
+			[ 'text' => $text ],
+			[ 'id' => $id ],
+			[ '%s' ],
+			[ '%d' ]
+		);
+		return false !== $rows;
+	}
+
 	public function set_enabled( int $id, bool $enabled ): bool {
 		global $wpdb;
 		$rows = $wpdb->update(

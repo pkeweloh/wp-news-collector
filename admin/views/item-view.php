@@ -97,20 +97,23 @@ $item_msg_map = [
 </table>
 
 <!-- -----------------------------------------------------------------------
-     Text
---------------------------------------------------------------------- -->
-<h2><?php esc_html_e( 'Text', 'wp-news-collector' ); ?></h2>
-<div style="padding:12px;background:#fff;border:1px solid #ccd0d4;max-width:700px;margin-bottom:1.5rem">
-	<?php echo wp_kses( (string) ( $item['text'] ?? '' ), $allowed ); ?>
-</div>
-
-<!-- -----------------------------------------------------------------------
      Editable media form
 --------------------------------------------------------------------- -->
 <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 	<?php wp_nonce_field( 'nc_item_media_save_' . $id ); ?>
 	<input type="hidden" name="action" value="nc_item_media_save" />
 	<input type="hidden" name="id" value="<?php echo $id; ?>" />
+
+	<!-- Text: locked (read-only) until the user clicks Edit. -->
+	<div style="display:flex;align-items:center;gap:12px;margin-bottom:.5rem">
+		<h2 style="margin:0"><?php esc_html_e( 'Text', 'wp-news-collector' ); ?></h2>
+		<button type="button" id="nc-text-lock" class="button button-small">&#9998; <?php esc_html_e( 'Edit', 'wp-news-collector' ); ?></button>
+	</div>
+	<div id="nc-text-readonly" style="padding:12px;background:#fff;border:1px solid #ccd0d4;max-width:700px;margin-bottom:1.5rem">
+		<?php echo wp_kses( (string) ( $item['text'] ?? '' ), $allowed ); ?>
+	</div>
+	<textarea id="nc-text-input" name="text" rows="6"
+		style="display:none;width:100%;max-width:700px;margin-bottom:1.5rem;font-family:monospace;font-size:.9em"><?php echo esc_textarea( (string) ( $item['text'] ?? '' ) ); ?></textarea>
 
 	<!-- Images -->
 	<h2><?php esc_html_e( 'Images', 'wp-news-collector' ); ?></h2>
@@ -264,6 +267,30 @@ $item_msg_map = [
 	var vidWrap   = document.getElementById('nc-videos-wrap');
 	var vidCount  = <?php echo count( $videos ); ?>;
 	var statuses  = <?php echo wp_json_encode( $valid_statuses ); ?>;
+
+	// Text lock: read-only until Edit; re-locking discards the change.
+	var textBtn      = document.getElementById('nc-text-lock');
+	var textReadonly = document.getElementById('nc-text-readonly');
+	var textInput    = document.getElementById('nc-text-input');
+	var textLabels   = <?php echo wp_json_encode( [ 'edit' => "\u{270E} " . __( 'Edit', 'wp-news-collector' ), 'lock' => "\u{2715} " . __( 'Lock', 'wp-news-collector' ) ] ); ?>;
+	if (textBtn) {
+		var textOriginal = textInput.value;
+		var textUnlocked = false;
+		textBtn.addEventListener('click', function () {
+			textUnlocked = !textUnlocked;
+			if (textUnlocked) {
+				textReadonly.style.display = 'none';
+				textInput.style.display = '';
+				textInput.focus();
+				textBtn.textContent = textLabels.lock;
+			} else {
+				textInput.value = textOriginal;
+				textInput.style.display = 'none';
+				textReadonly.style.display = '';
+				textBtn.textContent = textLabels.edit;
+			}
+		});
+	}
 
 	// Remove any row/block
 	document.addEventListener('click', function (e) {
