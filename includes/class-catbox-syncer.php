@@ -64,6 +64,83 @@ class NC_Catbox_Syncer {
 		return [ 'ok' => true, 'catbox_url' => $new_url, 'album_id' => $album_id ];
 	}
 
+	/**
+	 * Retry failed uploads with per-row exponential backoff and a circuit-breaker.
+	 * Orphaned failures (piece gone from the item, original URL expired) are
+	 * skipped rather than retried.
+	 *
+	 * @return array{attempted:int, succeeded:int, failed:int, orphaned:int, aborted:bool, remaining:int, ran_at:string}
+	 */
+	public function retry_failed(
+		int $batch_size = 10,
+		int $max_attempts = 8,
+		int $breaker_threshold = 3,
+		int $backoff_base = 600,
+		int $backoff_cap = 21600
+	): array {
+		$stats = [ 'attempted' => 0, 'succeeded' => 0, 'failed' => 0, 'orphaned' => 0, 'aborted' => false ];
+		$batch_size = max( 1, $batch_size );
+
+		// Over-fetch: the linked filter runs in PHP, so orphans must not eat the batch.
+		$candidates  = $this->uploads->get_retryable_uploads( gmdate( 'Y-m-d H:i:s' ), $max_attempts, max( $batch_size * 5, 100 ) );
+		$consecutive = 0;
+
+		foreach ( $candidates as $row ) {
+			if ( $stats['attempted'] >= $batch_size ) {
+				break;
+			}
+			$id       = (int) ( $row['id'] ?? 0 );
+			$guid     = (string) ( $row['item_guid'] ?? '' );
+			$type     = (string) ( $row['upload_type'] ?? '' );
+			$original = (string) ( $row['original_url'] ?? '' );
+
+			if ( ! $this->is_piece_linked( $guid, $type, $original ) ) {
+				$stats['orphaned']++;
+				continue;
+			}
+
+			$stats['attempted']++;
+			$result = $this->retry_upload( $id );
+			if ( ! empty( $result['ok'] ) ) {
+				$stats['succeeded']++;
+				$consecutive = 0;
+				continue;
+			}
+
+			$stats['failed']++;
+			$retry_count = (int) ( $row['retry_count'] ?? 0 );
+			$delay       = (int) min( $backoff_cap, $backoff_base * ( 2 ** $retry_count ) );
+			$this->uploads->schedule_upload_retry( $id, gmdate( 'Y-m-d H:i:s', time() + $delay ) );
+			$consecutive++;
+			if ( $breaker_threshold > 0 && $consecutive >= $breaker_threshold ) {
+				$stats['aborted'] = true;
+				break;
+			}
+		}
+
+		$stats['remaining'] = $this->uploads->count_retryable( gmdate( 'Y-m-d H:i:s' ), $max_attempts );
+		$stats['ran_at']    = gmdate( 'Y-m-d H:i:s' );
+		update_option( 'nc_catbox_retry_stats', $stats );
+		return $stats;
+	}
+
+	/** Whether (upload_type, original_url) is still a live, un-uploaded piece of its item. */
+	private function is_piece_linked( string $guid, string $upload_type, string $original_url ): bool {
+		if ( '' === $guid || '' === $original_url ) {
+			return false;
+		}
+		$item = $this->items->get_by_guid( $guid );
+		if ( null === $item ) {
+			return false;
+		}
+		foreach ( $this->pending_pieces( $item ) as [ $ptype, $purl ] ) {
+			if ( $ptype === $upload_type && $purl === $original_url ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** @return array<string, mixed> */
 	public function retry_item( int $item_id ): array {
 		$item = $this->items->get_by_id( $item_id );

@@ -30,6 +30,7 @@ class NC_Catbox_Page {
 			);
 		}
 		$sync_stats    = get_option( 'nc_catbox_sync_stats', null );
+		$retry_stats   = get_option( 'nc_catbox_retry_stats', null );
 		$msg           = isset( $_GET['nc_msg'] ) ? sanitize_key( (string) $_GET['nc_msg'] ) : '';
 
 		$uploads_page_num = isset( $_GET['upaged'] ) ? max( 1, (int) $_GET['upaged'] ) : 1;

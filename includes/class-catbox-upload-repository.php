@@ -123,6 +123,50 @@ class NC_Catbox_Upload_Repository {
 		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$this->uploads_table} WHERE error IS NOT NULL" );
 	}
 
+	// $max_attempts <= 0 means no attempt cap.
+	private const RETRYABLE_WHERE = "error IS NOT NULL
+		AND ( catbox_url IS NULL OR catbox_url = '' )
+		AND ( next_retry_at IS NULL OR next_retry_at <= %s )
+		AND ( %d <= 0 OR retry_count < %d )";
+
+	/**
+	 * Failed uploads due for another attempt, most-urgent first.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_retryable_uploads( string $now, int $max_attempts, int $limit = 100 ): array {
+		global $wpdb;
+		$limit = max( 1, $limit );
+		$sql   = "SELECT * FROM {$this->uploads_table}
+			WHERE " . self::RETRYABLE_WHERE . "
+			ORDER BY next_retry_at IS NULL DESC, next_retry_at ASC, id ASC
+			LIMIT %d";
+		$rows  = $wpdb->get_results(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare( $sql, $now, $max_attempts, $max_attempts, $limit ),
+			ARRAY_A
+		);
+		return is_array( $rows ) ? $rows : [];
+	}
+
+	public function count_retryable( string $now, int $max_attempts ): int {
+		global $wpdb;
+		$sql = "SELECT COUNT(*) FROM {$this->uploads_table} WHERE " . self::RETRYABLE_WHERE;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( $sql, $now, $max_attempts, $max_attempts ) );
+	}
+
+	public function schedule_upload_retry( int $id, string $next_retry_at ): void {
+		global $wpdb;
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$this->uploads_table} SET retry_count = retry_count + 1, next_retry_at = %s WHERE id = %d",
+				$next_retry_at,
+				$id
+			)
+		);
+	}
+
 	/**
 	 * Look up the original (source) URL we logged for a given Catbox URL.
 	 * Returns '' if none is tracked.

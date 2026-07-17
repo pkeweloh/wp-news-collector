@@ -77,6 +77,7 @@ class NC_Plugin {
 		add_action( 'nc_backfill_catbox', [ $this->processor, 'backfill_catbox' ] );
 		add_action( 'nc_backfill_catbox_ids', [ $this->processor, 'backfill_catbox' ] );
 		add_action( 'nc_catbox_sync', [ $this->syncer, 'run_sync' ] );
+		add_action( 'nc_catbox_retry', [ $this, 'run_catbox_retry' ] );
 		add_action( 'nc_detect_covers', [ $this->processor, 'detect_cover_candidates' ] );
 		add_action( 'nc_clean_covers', [ $this->processor, 'clean_confirmed_covers' ] );
 		add_action( 'init', [ $this, 'maybe_schedule_recurring' ] );
@@ -132,15 +133,38 @@ class NC_Plugin {
 		if ( ! empty( $settings['catbox_userhash'] ) && ! as_next_scheduled_action( 'nc_catbox_sync' ) ) {
 			as_schedule_recurring_action( time() + 300, DAY_IN_SECONDS, 'nc_catbox_sync', [], 'nc' );
 		}
+		if ( ! empty( $settings['catbox_userhash'] ) && ! empty( $settings['catbox_retry_enabled'] )
+			&& ! as_next_scheduled_action( 'nc_catbox_retry' ) ) {
+			$retry_interval = max( 300, (int) $settings['catbox_retry_interval'] );
+			as_schedule_recurring_action( time() + 120, $retry_interval, 'nc_catbox_retry', [], 'nc' );
+		}
+	}
+
+	public function run_catbox_retry(): void {
+		$settings = self::get_settings();
+		if ( empty( $settings['catbox_enabled'] ) || empty( $settings['catbox_userhash'] )
+			|| empty( $settings['catbox_retry_enabled'] ) ) {
+			return;
+		}
+		$this->syncer->retry_failed(
+			max( 1, (int) $settings['catbox_retry_batch_size'] ),
+			(int) $settings['catbox_retry_max_attempts'],
+			(int) $settings['catbox_retry_breaker_threshold']
+		);
 	}
 
 	public static function default_settings(): array {
 		return [
-			'catbox_enabled'         => false,
-			'catbox_userhash'        => '',
-			'fetch_interval_minutes' => 30,
-			'max_items_per_source'   => 50,
-			'item_slug'              => 'noticia',
+			'catbox_enabled'                 => false,
+			'catbox_userhash'                => '',
+			'fetch_interval_minutes'         => 30,
+			'max_items_per_source'           => 50,
+			'item_slug'                      => 'noticia',
+			'catbox_retry_enabled'           => true,
+			'catbox_retry_interval'          => 3600,
+			'catbox_retry_batch_size'        => 10,
+			'catbox_retry_max_attempts'      => 8,
+			'catbox_retry_breaker_threshold' => 3,
 		];
 	}
 

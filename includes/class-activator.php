@@ -63,11 +63,13 @@ class NC_Activator {
 			item_guid    VARCHAR(500)    NOT NULL DEFAULT '',
 			upload_type  VARCHAR(32)     NOT NULL DEFAULT '',
 			original_url TEXT,
-			catbox_url   VARCHAR(500)    DEFAULT NULL,
-			error        TEXT            DEFAULT NULL,
-			album_id     VARCHAR(32)     DEFAULT NULL,
-			uploaded_at  DATETIME        NOT NULL,
-			created_at   DATETIME        NOT NULL,
+			catbox_url    VARCHAR(500)   DEFAULT NULL,
+			error         TEXT           DEFAULT NULL,
+			album_id      VARCHAR(32)    DEFAULT NULL,
+			retry_count   INT            NOT NULL DEFAULT 0,
+			next_retry_at DATETIME       DEFAULT NULL,
+			uploaded_at   DATETIME       NOT NULL,
+			created_at    DATETIME       NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY uk_catbox_url (catbox_url(191))
 		) {$charset_collate};";
@@ -127,6 +129,14 @@ class NC_Activator {
 		if ( ! in_array( 'error', $columns, true ) ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN error TEXT DEFAULT NULL AFTER catbox_url" );
+		}
+		if ( ! in_array( 'retry_count', $columns, true ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN retry_count INT NOT NULL DEFAULT 0 AFTER album_id" );
+		}
+		if ( ! in_array( 'next_retry_at', $columns, true ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN next_retry_at DATETIME DEFAULT NULL AFTER retry_count" );
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "ALTER TABLE {$table} MODIFY catbox_url VARCHAR(500) DEFAULT NULL" );

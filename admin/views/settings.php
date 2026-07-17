@@ -42,6 +42,34 @@ defined( 'ABSPATH' ) || exit;
 				</td>
 			</tr>
 			<tr>
+				<th scope="row"><?php esc_html_e( 'Auto-retry failed uploads', 'wp-news-collector' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" id="nc_catbox_retry_enabled" name="nc_settings[catbox_retry_enabled]" value="1" <?php checked( ! empty( $settings['catbox_retry_enabled'] ) ); ?> />
+						<?php esc_html_e( 'Periodically re-upload failed Catbox uploads (needs a userhash).', 'wp-news-collector' ); ?>
+					</label>
+					<p class="description"><?php esc_html_e( 'Uses per-item exponential backoff and a circuit breaker that pauses until the next sweep when Catbox is down.', 'wp-news-collector' ); ?></p>
+					<div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin:.7rem 0 0;">
+						<label style="display:flex;flex-direction:column;gap:.25rem;">
+							<span><?php esc_html_e( 'Interval (seconds)', 'wp-news-collector' ); ?></span>
+							<input type="number" min="300" style="width:9rem" name="nc_settings[catbox_retry_interval]" value="<?php echo esc_attr( (string) ( $settings['catbox_retry_interval'] ?? 3600 ) ); ?>" />
+						</label>
+						<label style="display:flex;flex-direction:column;gap:.25rem;">
+							<span><?php esc_html_e( 'Batch size', 'wp-news-collector' ); ?></span>
+							<input type="number" min="1" style="width:9rem" name="nc_settings[catbox_retry_batch_size]" value="<?php echo esc_attr( (string) ( $settings['catbox_retry_batch_size'] ?? 10 ) ); ?>" />
+						</label>
+						<label style="display:flex;flex-direction:column;gap:.25rem;">
+							<span><?php esc_html_e( 'Max attempts (0 = unlimited)', 'wp-news-collector' ); ?></span>
+							<input type="number" min="0" style="width:9rem" name="nc_settings[catbox_retry_max_attempts]" value="<?php echo esc_attr( (string) ( $settings['catbox_retry_max_attempts'] ?? 8 ) ); ?>" />
+						</label>
+						<label style="display:flex;flex-direction:column;gap:.25rem;">
+							<span><?php esc_html_e( 'Breaker threshold', 'wp-news-collector' ); ?></span>
+							<input type="number" min="1" style="width:9rem" name="nc_settings[catbox_retry_breaker_threshold]" value="<?php echo esc_attr( (string) ( $settings['catbox_retry_breaker_threshold'] ?? 3 ) ); ?>" />
+						</label>
+					</div>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row"><label for="nc_fetch_interval"><?php esc_html_e( 'Fetch interval (minutes)', 'wp-news-collector' ); ?></label></th>
 				<td><input type="number" min="1" id="nc_fetch_interval" name="nc_settings[fetch_interval_minutes]" value="<?php echo esc_attr( (string) $settings['fetch_interval_minutes'] ); ?>" /></td>
 			</tr>

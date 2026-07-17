@@ -43,6 +43,19 @@ class NC_Settings_Page {
 			'item_slug'              => isset( $input['item_slug'] )
 				? sanitize_title( (string) $input['item_slug'] ) ?: 'noticia'
 				: $defaults['item_slug'],
+			'catbox_retry_enabled'           => ! empty( $input['catbox_retry_enabled'] ),
+			'catbox_retry_interval'          => isset( $input['catbox_retry_interval'] )
+				? max( 300, (int) $input['catbox_retry_interval'] )
+				: $defaults['catbox_retry_interval'],
+			'catbox_retry_batch_size'        => isset( $input['catbox_retry_batch_size'] )
+				? max( 1, (int) $input['catbox_retry_batch_size'] )
+				: $defaults['catbox_retry_batch_size'],
+			'catbox_retry_max_attempts'      => isset( $input['catbox_retry_max_attempts'] )
+				? max( 0, (int) $input['catbox_retry_max_attempts'] )
+				: $defaults['catbox_retry_max_attempts'],
+			'catbox_retry_breaker_threshold' => isset( $input['catbox_retry_breaker_threshold'] )
+				? max( 1, (int) $input['catbox_retry_breaker_threshold'] )
+				: $defaults['catbox_retry_breaker_threshold'],
 		];
 
 		// Reschedule recurring action with new interval.
@@ -55,6 +68,17 @@ class NC_Settings_Page {
 				[],
 				'nc'
 			);
+
+			as_unschedule_all_actions( 'nc_catbox_retry' );
+			if ( $out['catbox_retry_enabled'] && '' !== $out['catbox_userhash'] ) {
+				as_schedule_recurring_action(
+					time() + 120,
+					$out['catbox_retry_interval'],
+					'nc_catbox_retry',
+					[],
+					'nc'
+				);
+			}
 		}
 
 		// Flush rewrite rules if the item slug changed.

@@ -8,6 +8,7 @@
  * @var int                              $unassigned
  * @var int                              $failed
  * @var array<string, mixed>|null        $sync_stats
+ * @var array<string, mixed>|null        $retry_stats
  * @var string                           $msg
  * @var array<string, mixed>             $uploads_data
  * @var string                           $uploads_filter
@@ -97,6 +98,27 @@ $msg_map = [
 		<input type="hidden" name="action" value="nc_catbox_sync" />
 		<?php submit_button( __( 'Run sync now', 'wp-news-collector' ), 'secondary', 'submit', false ); ?>
 	</form>
+
+	<?php if ( is_array( $retry_stats ) ) : ?>
+		<hr style="margin:1rem 0" />
+		<h2 style="margin:0 0 .35rem"><?php esc_html_e( 'Auto-retry of failed uploads', 'wp-news-collector' ); ?></h2>
+		<p style="margin:0">
+			<?php
+			printf(
+				// translators: 1: date/time, 2: attempted, 3: succeeded, 4: failed, 5: still-due count
+				esc_html__( 'Last sweep: %1$s: %2$d attempted, %3$d succeeded, %4$d failed, %5$d still pending.', 'wp-news-collector' ),
+				esc_html( NC_Template_Helpers::format_date_es( (string) ( $retry_stats['ran_at'] ?? '' ) ) ),
+				(int) ( $retry_stats['attempted'] ?? 0 ),
+				(int) ( $retry_stats['succeeded'] ?? 0 ),
+				(int) ( $retry_stats['failed'] ?? 0 ),
+				(int) ( $retry_stats['remaining'] ?? 0 )
+			);
+			?>
+			<?php if ( ! empty( $retry_stats['aborted'] ) ) : ?>
+				<span style="color:#b32d2e">&middot; <?php esc_html_e( 'circuit breaker tripped (Catbox likely down): paused until the next sweep.', 'wp-news-collector' ); ?></span>
+			<?php endif; ?>
+		</p>
+	<?php endif; ?>
 </div>
 
 <!-- -----------------------------------------------------------------------
@@ -317,6 +339,29 @@ $msg_map = [
 						<input type="hidden" name="upload_id" value="<?php echo (int) $upload['id']; ?>" />
 						<button type="submit" class="button button-small"><?php esc_html_e( 'Retry', 'wp-news-collector' ); ?></button>
 					</form>
+						<?php
+						// Mirrors alerta-boe's backoffLabel: "N reintentos · próximo <date>",
+						// or "reintento pendiente" once next_retry_at is due.
+						$up_retries = (int) ( $upload['retry_count'] ?? 0 );
+						$up_next    = (string) ( $upload['next_retry_at'] ?? '' );
+						if ( $up_retries > 0 || '' !== $up_next ) :
+							$backoff = [];
+							if ( $up_retries > 0 ) {
+								$backoff[] = sprintf( _n( '%d retry', '%d retries', $up_retries, 'wp-news-collector' ), $up_retries );
+							}
+							if ( '' !== $up_next ) {
+								$due_ts    = strtotime( $up_next . ' UTC' );
+								$backoff[] = ( false === $due_ts || $due_ts <= time() )
+									? __( 'retry pending', 'wp-news-collector' )
+									: sprintf(
+										/* translators: %s: next retry date/time */
+										__( 'next %s', 'wp-news-collector' ),
+										NC_Template_Helpers::format_date_es( $up_next )
+									);
+							}
+							?>
+							<p class="description" style="margin:.25rem 0 0"><?php echo esc_html( implode( ' · ', $backoff ) ); ?></p>
+						<?php endif; ?>
 				<?php else : ?>
 					<span style="color:#888">—</span>
 				<?php endif; ?>

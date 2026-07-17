@@ -523,3 +523,44 @@ msgstr "Nombre del sitio"
 
 msgid "URL"
 msgstr "URL"
+
+msgid "Auto-retry failed uploads"
+msgstr "Reintento automático de subidas fallidas"
+
+msgid "Periodically re-upload failed Catbox uploads (needs a userhash)."
+msgstr "Reintenta periódicamente las subidas a Catbox fallidas (requiere userhash)."
+
+msgid "Uses per-item exponential backoff and a circuit breaker that pauses until the next sweep when Catbox is down."
+msgstr "Usa backoff exponencial por elemento y un cortacircuitos que pausa hasta el siguiente barrido cuando Catbox está caído."
+
+msgid "Interval (seconds)"
+msgstr "Intervalo (segundos)"
+
+msgid "Batch size"
+msgstr "Tamaño de lote"
+
+msgid "Max attempts (0 = unlimited)"
+msgstr "Intentos máximos (0 = ilimitado)"
+
+msgid "Breaker threshold"
+msgstr "Umbral del cortacircuitos"
+
+msgid "Auto-retry of failed uploads"
+msgstr "Reintento automático de subidas fallidas"
+
+msgid "Last sweep: %1$s: %2$d attempted, %3$d succeeded, %4$d failed, %5$d still pending."
+msgstr "Último barrido: %1$s: %2$d intentadas, %3$d con éxito, %4$d fallidas, %5$d pendientes."
+
+msgid "circuit breaker tripped (Catbox likely down): paused until the next sweep."
+msgstr "cortacircuitos activado (Catbox probablemente caído): en pausa hasta el siguiente barrido."
+
+msgid "%d retry"
+msgid_plural "%d retries"
+msgstr[0] "%d reintento"
+msgstr[1] "%d reintentos"
+
+msgid "retry pending"
+msgstr "reintento pendiente"
+
+msgid "next %s"
+msgstr "próximo %s"
