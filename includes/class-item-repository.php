@@ -25,6 +25,26 @@ class NC_Item_Repository {
 	}
 
 	/**
+	 * Whether a Telegram post already exists for this source. RSSHub re-emits the
+	 * same post under different guids (t.me/c/123 vs t.me/s/c/123 vs ...?single),
+	 * so guid alone lets duplicates through; (source, telegram_id) is stable.
+	 */
+	public function exists_by_telegram( string $source, int $telegram_id ): bool {
+		if ( '' === $source || $telegram_id <= 0 ) {
+			return false;
+		}
+		global $wpdb;
+		$row = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT 1 FROM {$this->table} WHERE source = %s AND telegram_id = %d LIMIT 1",
+				$source,
+				$telegram_id
+			)
+		);
+		return null !== $row;
+	}
+
+	/**
 	 * Insert a new parsed item. Arrays are JSON-encoded.
 	 * Uses INSERT IGNORE to silently skip duplicates by guid.
 	 *

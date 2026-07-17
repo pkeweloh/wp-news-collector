@@ -51,7 +51,8 @@ class NC_Activator {
 			fetched_at      DATETIME        NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY uk_guid (guid(191)),
-			KEY idx_published (published_at, telegram_id)
+			KEY idx_published (published_at, telegram_id),
+			KEY idx_source_tgid (source(150), telegram_id)
 		) {$charset_collate};";
 
 		// catbox_url nullable: failed rows are NULL, which coexist under uk_catbox_url.

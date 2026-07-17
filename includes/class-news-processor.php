@@ -148,7 +148,9 @@ class NC_News_Processor {
 		foreach ( $parsed as $item ) {
 			$item['source_name'] = $display_name;
 
-			if ( $this->items->exists( (string) $item['guid'] ) ) {
+			$telegram_id = (int) ( $item['telegram_id'] ?? 0 );
+			if ( $this->items->exists( (string) $item['guid'] )
+				|| $this->items->exists_by_telegram( $source, $telegram_id ) ) {
 				$stats['skipped']++;
 				continue;
 			}
