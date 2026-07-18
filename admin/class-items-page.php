@@ -17,9 +17,11 @@ class NC_Items_Table extends WP_List_Table {
 	private array $rows;
 	private string $video_filter;
 	private int $current_page;
+	private string $source;
+	private string $search;
 
 	/** @param array<int, array<string, mixed>> $rows */
-	public function __construct( array $rows, string $video_filter, int $current_page ) {
+	public function __construct( array $rows, string $video_filter, int $current_page, string $source = '', string $search = '' ) {
 		parent::__construct(
 			[
 				'singular' => 'item',
@@ -30,6 +32,8 @@ class NC_Items_Table extends WP_List_Table {
 		$this->rows         = $rows;
 		$this->video_filter = $video_filter;
 		$this->current_page = $current_page;
+		$this->source       = $source;
+		$this->search       = $search;
 	}
 
 	public function get_columns(): array {
@@ -91,6 +95,12 @@ class NC_Items_Table extends WP_List_Table {
 		$id   = (int) $item['id'];
 		$base = admin_url( 'admin-post.php' );
 		$args = [ 'action' => 'nc_item_action', 'id' => $id, 'vf' => $this->video_filter, 'paged' => $this->current_page ];
+		if ( '' !== $this->source ) {
+			$args['source'] = $this->source;
+		}
+		if ( '' !== $this->search ) {
+			$args['s'] = $this->search;
+		}
 
 		$toggle_action = (int) $item['enabled'] === 1 ? 'hide' : 'show';
 		$toggle = wp_nonce_url(
@@ -138,24 +148,28 @@ class NC_Items_Page {
 			}
 		}
 
-		$vf    = isset( $_GET['vf'] ) ? sanitize_key( (string) $_GET['vf'] ) : 'all';
-		$paged = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
+		$vf     = isset( $_GET['vf'] ) ? sanitize_key( (string) $_GET['vf'] ) : 'all';
+		$paged  = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
+		$source = isset( $_GET['source'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['source'] ) ) : '';
+		$search = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['s'] ) ) : '';
 		$page_size = 25;
 
 		$settings       = (array) get_option( 'nc_settings', [] );
 		$catbox_enabled = ! empty( $settings['catbox_enabled'] );
 
-		$page  = $this->items->get_page_admin( $paged, $page_size, $vf, $catbox_enabled );
+		$page  = $this->items->get_page_admin( $paged, $page_size, $vf, $catbox_enabled, $source, $search );
 
-		$table = new NC_Items_Table( $page['items'], $vf, $paged );
+		$table = new NC_Items_Table( $page['items'], $vf, $paged, $source, $search );
 		$table->prepare_items();
 
 		$filter_counts = [
-			'all'           => $this->items->count_admin( 'all', $catbox_enabled ),
-			'too_big'       => $this->items->count_admin( 'too_big', $catbox_enabled ),
-			'upload_failed' => $this->items->count_admin( 'upload_failed', $catbox_enabled ),
-			'hidden'        => $this->items->count_admin( 'hidden', $catbox_enabled ),
+			'all'           => $this->items->count_admin( 'all', $catbox_enabled, $source, $search ),
+			'too_big'       => $this->items->count_admin( 'too_big', $catbox_enabled, $source, $search ),
+			'upload_failed' => $this->items->count_admin( 'upload_failed', $catbox_enabled, $source, $search ),
+			'hidden'        => $this->items->count_admin( 'hidden', $catbox_enabled, $source, $search ),
 		];
+
+		$sources = $this->items->get_distinct_sources();
 
 		$msg = isset( $_GET['nc_msg'] ) ? sanitize_key( (string) $_GET['nc_msg'] ) : '';
 		$bulk_uploaded = isset( $_GET['nc_up'] ) ? max( 0, (int) $_GET['nc_up'] ) : 0;

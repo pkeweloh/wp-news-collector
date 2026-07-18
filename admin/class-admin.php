@@ -169,16 +169,19 @@ class NC_Admin {
 				$this->items->delete( $id );
 				break;
 		}
-		$redirect = add_query_arg(
-			[
-				'page'   => 'nc_items',
-				'nc_msg' => $action,
-				'vf'     => isset( $_GET['vf'] ) ? sanitize_key( (string) $_GET['vf'] ) : 'all',
-				'paged'  => isset( $_GET['paged'] ) ? (int) $_GET['paged'] : 1,
-			],
-			admin_url( 'admin.php' )
-		);
-		wp_safe_redirect( $redirect );
+		$redirect_args = [
+			'page'   => 'nc_items',
+			'nc_msg' => $action,
+			'vf'     => isset( $_GET['vf'] ) ? sanitize_key( (string) $_GET['vf'] ) : 'all',
+			'paged'  => isset( $_GET['paged'] ) ? (int) $_GET['paged'] : 1,
+		];
+		if ( isset( $_GET['source'] ) && '' !== (string) $_GET['source'] ) {
+			$redirect_args['source'] = sanitize_text_field( wp_unslash( (string) $_GET['source'] ) );
+		}
+		if ( isset( $_GET['s'] ) && '' !== (string) $_GET['s'] ) {
+			$redirect_args['s'] = sanitize_text_field( wp_unslash( (string) $_GET['s'] ) );
+		}
+		wp_safe_redirect( add_query_arg( $redirect_args, admin_url( 'admin.php' ) ) );
 		exit;
 	}
 
@@ -218,6 +221,12 @@ class NC_Admin {
 			'vf'     => isset( $_POST['vf'] ) ? sanitize_key( (string) $_POST['vf'] ) : 'all',
 			'paged'  => isset( $_POST['paged'] ) ? (int) $_POST['paged'] : 1,
 		];
+		if ( isset( $_POST['source'] ) && '' !== (string) $_POST['source'] ) {
+			$redirect_args['source'] = sanitize_text_field( wp_unslash( (string) $_POST['source'] ) );
+		}
+		if ( isset( $_POST['s'] ) && '' !== (string) $_POST['s'] ) {
+			$redirect_args['s'] = sanitize_text_field( wp_unslash( (string) $_POST['s'] ) );
+		}
 		if ( 'retry_catbox' === $action ) {
 			$redirect_args['nc_up']   = $retry_uploaded;
 			$redirect_args['nc_fail'] = $retry_failed;

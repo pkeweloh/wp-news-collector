@@ -475,19 +475,75 @@ class NC_Item_Repository {
 	 *
 	 * @return array<string, mixed>
 	 */
-	public function get_page_admin( int $page, int $page_size, string $video_filter = 'all', bool $catbox_enabled = false ): array {
-		[ $conditions, $params ] = $this->admin_filter_clause( $video_filter, $catbox_enabled );
+	public function get_page_admin( int $page, int $page_size, string $video_filter = 'all', bool $catbox_enabled = false, string $source = '', string $search = '' ): array {
+		[ $conditions, $params ] = $this->admin_filter_clause( $video_filter, $catbox_enabled, $source, $search );
 		return $this->fetch_page( $page, $page_size, $conditions, $params );
 	}
 
 	/**
-	 * Build the WHERE conditions + params for an admin filter key.
+	 * Channel + free-text conditions shared by the admin list and its chip
+	 * counts. A numeric search is an exact id match; otherwise a LIKE over the
+	 * item text and the source display name.
 	 *
 	 * @return array{0: string[], 1: array<int, mixed>}
 	 */
-	private function admin_filter_clause( string $video_filter, bool $catbox_enabled = false ): array {
+	private function admin_search_clause( string $source, string $search ): array {
+		global $wpdb;
 		$conditions = [];
 		$params     = [];
+		if ( '' !== $source ) {
+			$conditions[] = 'source = %s';
+			$params[]     = $source;
+		}
+		$search = trim( $search );
+		if ( '' !== $search ) {
+			if ( ctype_digit( $search ) ) {
+				$conditions[] = 'id = %d';
+				$params[]     = (int) $search;
+			} else {
+				$like         = '%' . $wpdb->esc_like( $search ) . '%';
+				$conditions[] = '( text LIKE %s OR source_name LIKE %s )';
+				$params[]     = $like;
+				$params[]     = $like;
+			}
+		}
+		return [ $conditions, $params ];
+	}
+
+	/**
+	 * Distinct sources present in the items table, for the admin channel select.
+	 *
+	 * @return array<int, array{source:string, source_name:string}>
+	 */
+	public function get_distinct_sources(): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results(
+			"SELECT source, MAX(source_name) AS source_name FROM {$this->table} GROUP BY source ORDER BY source_name",
+			ARRAY_A
+		);
+		$out = [];
+		foreach ( (array) $rows as $row ) {
+			$src = (string) ( $row['source'] ?? '' );
+			if ( '' === $src ) {
+				continue;
+			}
+			$out[] = [
+				'source'      => $src,
+				'source_name' => '' !== (string) ( $row['source_name'] ?? '' ) ? (string) $row['source_name'] : $src,
+			];
+		}
+		return $out;
+	}
+
+	/**
+	 * Build the WHERE conditions + params for an admin filter key, scoped by an
+	 * optional channel + search.
+	 *
+	 * @return array{0: string[], 1: array<int, mixed>}
+	 */
+	private function admin_filter_clause( string $video_filter, bool $catbox_enabled = false, string $source = '', string $search = '' ): array {
+		[ $conditions, $params ] = $this->admin_search_clause( $source, $search );
 		switch ( $video_filter ) {
 			case 'too_big':
 				$conditions[] = 'videos LIKE %s';
@@ -514,9 +570,9 @@ class NC_Item_Repository {
 	/**
 	 * Count items matching an admin filter key, for the filter links.
 	 */
-	public function count_admin( string $video_filter = 'all', bool $catbox_enabled = false ): int {
+	public function count_admin( string $video_filter = 'all', bool $catbox_enabled = false, string $source = '', string $search = '' ): int {
 		global $wpdb;
-		[ $conditions, $params ] = $this->admin_filter_clause( $video_filter, $catbox_enabled );
+		[ $conditions, $params ] = $this->admin_filter_clause( $video_filter, $catbox_enabled, $source, $search );
 		$where = empty( $conditions ) ? '' : ( 'WHERE ' . implode( ' AND ', $conditions ) );
 		if ( empty( $params ) ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

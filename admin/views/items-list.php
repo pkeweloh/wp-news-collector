@@ -12,6 +12,9 @@
  * @var int $bulk_uploaded
  * @var int $bulk_failed
  * @var array<string, mixed> $last_run
+ * @var string $source
+ * @var string $search
+ * @var array<int, array{source:string, source_name:string}> $sources
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -68,9 +71,35 @@ $filters = [
 		?></p></div>
 	<?php endif; ?>
 
+	<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="search-form" style="float:right;margin:.5rem 0 0;display:flex;align-items:center;gap:.35rem">
+		<input type="hidden" name="page" value="nc_items" />
+		<input type="hidden" name="vf" value="<?php echo esc_attr( $vf ); ?>" />
+		<label class="screen-reader-text" for="nc-item-search"><?php esc_html_e( 'Search items', 'wp-news-collector' ); ?></label>
+		<select name="source" style="margin:0">
+			<option value=""><?php esc_html_e( 'All channels', 'wp-news-collector' ); ?></option>
+			<?php foreach ( $sources as $src ) : ?>
+				<option value="<?php echo esc_attr( $src['source'] ); ?>" <?php selected( $source, $src['source'] ); ?>>
+					<?php echo esc_html( $src['source_name'] ); ?>
+				</option>
+			<?php endforeach; ?>
+		</select>
+		<input type="search" id="nc-item-search" name="s" value="<?php echo esc_attr( $search ); ?>"
+			placeholder="<?php esc_attr_e( 'ID or text…', 'wp-news-collector' ); ?>" style="width:200px;margin:0" />
+		<?php submit_button( __( 'Search', 'wp-news-collector' ), 'secondary', '', false, [ 'style' => 'margin:0' ] ); ?>
+		<?php if ( '' !== $search || '' !== $source ) : ?>
+			<a class="button-link" href="<?php echo esc_url( add_query_arg( [ 'page' => 'nc_items', 'vf' => $vf ], admin_url( 'admin.php' ) ) ); ?>"><?php esc_html_e( 'Clear', 'wp-news-collector' ); ?></a>
+		<?php endif; ?>
+	</form>
+
 	<ul class="subsubsub">
 		<?php
-		$base_url = add_query_arg( [ 'page' => 'nc_items' ], admin_url( 'admin.php' ) );
+		$base_url = add_query_arg(
+			array_filter(
+				[ 'page' => 'nc_items', 'source' => $source, 's' => $search ],
+				static fn ( $v ): bool => '' !== (string) $v
+			),
+			admin_url( 'admin.php' )
+		);
 		$f_links  = [];
 		foreach ( $filters as $key => $label ) {
 			$class     = $key === $vf ? 'current' : '';
@@ -92,6 +121,8 @@ $filters = [
 		<input type="hidden" name="action" value="nc_items_bulk" />
 		<input type="hidden" name="vf" value="<?php echo esc_attr( $vf ); ?>" />
 		<input type="hidden" name="paged" value="<?php echo (int) $paged; ?>" />
+		<input type="hidden" name="source" value="<?php echo esc_attr( $source ); ?>" />
+		<input type="hidden" name="s" value="<?php echo esc_attr( $search ); ?>" />
 		<?php // Nonce is added by WP_List_Table::display_tablenav() as 'bulk-items': do not add a second one here. ?>
 
 		<div class="tablenav top">
@@ -113,7 +144,13 @@ $filters = [
 
 	<?php
 	if ( (int) $page['total_pages'] > 1 ) :
-		$base = add_query_arg( [ 'page' => 'nc_items', 'vf' => $vf ], admin_url( 'admin.php' ) );
+		$base = add_query_arg(
+			array_filter(
+				[ 'page' => 'nc_items', 'vf' => $vf, 'source' => $source, 's' => $search ],
+				static fn ( $v ): bool => '' !== (string) $v
+			),
+			admin_url( 'admin.php' )
+		);
 		?>
 		<div class="tablenav bottom">
 			<?php if ( $page['has_prev'] ) : ?>

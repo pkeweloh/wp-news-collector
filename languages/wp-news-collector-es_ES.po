@@ -612,3 +612,18 @@ msgstr "Subidas"
 
 msgid "Manage tracked uploads and orphan cleanup"
 msgstr "Gestionar subidas rastreadas y limpieza de huérfanas"
+
+msgid "Search"
+msgstr "Buscar"
+
+msgid "Search items"
+msgstr "Buscar ítems"
+
+msgid "All channels"
+msgstr "Todos los canales"
+
+msgid "ID or text…"
+msgstr "ID o texto…"
+
+msgid "Clear"
+msgstr "Limpiar"

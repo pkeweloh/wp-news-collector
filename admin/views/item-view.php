@@ -77,7 +77,21 @@ $item_msg_map = [
 ?>
 <div class="wrap nc-wrap">
 <h1><?php printf( esc_html__( 'Item #%d', 'wp-news-collector' ), $id ); ?></h1>
-<p><a href="<?php echo esc_url( $back ); ?>" class="button">&laquo; <?php esc_html_e( 'Back to items', 'wp-news-collector' ); ?></a></p>
+<?php
+$delete_url = wp_nonce_url(
+	add_query_arg(
+		[ 'action' => 'nc_item_action', 'nc_action' => 'delete', 'id' => $id ],
+		admin_url( 'admin-post.php' )
+	),
+	'nc_item_delete_' . $id
+);
+?>
+<p style="display:flex;gap:.5rem;align-items:center">
+	<a href="<?php echo esc_url( $back ); ?>" class="button">&laquo; <?php esc_html_e( 'Back to items', 'wp-news-collector' ); ?></a>
+	<a href="<?php echo esc_url( $delete_url ); ?>" class="button"
+		onclick="return confirm('<?php echo esc_js( __( 'Delete this item?', 'wp-news-collector' ) ); ?>')"
+		style="color:#b32d2e;border-color:#b32d2e">✕ <?php esc_html_e( 'Delete', 'wp-news-collector' ); ?></a>
+</p>
 
 <?php if ( isset( $item_msg_map[ $msg ] ) ) : ?>
 	<div class="notice notice-<?php echo esc_attr( $item_msg_map[ $msg ][0] ); ?> is-dismissible"><p><?php echo esc_html( $item_msg_map[ $msg ][1] ); ?></p></div>
@@ -98,6 +112,7 @@ $item_msg_map = [
 --------------------------------------------------------------------- -->
 <table class="widefat" style="max-width:900px;margin-bottom:1.5rem">
 	<tbody>
+		<tr><th><?php esc_html_e( 'ID', 'wp-news-collector' ); ?></th><td>#<?php echo (int) $id; ?>: <a href="<?php echo esc_url( NC_Plugin::item_permalink( $id ) ); ?>" target="_blank" rel="noreferrer noopener"><?php esc_html_e( 'View', 'wp-news-collector' ); ?> ↗</a></td></tr>
 		<tr><th><?php esc_html_e( 'GUID', 'wp-news-collector' ); ?></th><td><code><?php echo esc_html( (string) $item['guid'] ); ?></code>: <a href="<?php echo esc_url( (string) $item['guid'] ); ?>" target="_blank" rel="noreferrer noopener">Telegram ↗</a></td></tr>
 		<tr><th><?php esc_html_e( 'Source', 'wp-news-collector' ); ?></th><td><?php echo esc_html( (string) $item['source_name'] ); ?> <em>(<?php echo esc_html( (string) $item['source'] ); ?>)</em></td></tr>
 		<tr><th><?php esc_html_e( 'Published', 'wp-news-collector' ); ?></th><td><?php echo esc_html( (string) $item['published_at'] ); ?></td></tr>
