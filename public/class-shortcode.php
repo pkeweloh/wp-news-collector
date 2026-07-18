@@ -200,7 +200,7 @@ class NC_Shortcode {
 	/**
 	 * Extract a clean single-line text preview from an item's HTML text field.
 	 * Block-level tags and <br> are replaced with a space before stripping so
-	 * that words don't concatenate (e.g. "Texto<br>más texto" → "Texto más texto").
+	 * that words don't concatenate (e.g. "Word<br>word" → "Word word").
 	 */
 	private function widget_text( string $raw_html, int $max_chars ): string {
 		// Replace line-break and block-closing tags with a space.

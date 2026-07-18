@@ -28,7 +28,7 @@
 	}
 
 	// -------------------------------------------------------------------------
-	// MediaLightbox — unchanged from the previous iteration.
+	// MediaLightbox: unchanged from the previous iteration.
 	// -------------------------------------------------------------------------
 	function MediaLightbox(items, startIndex) {
 		this.items = items;
@@ -138,7 +138,7 @@
 	};
 
 	// -------------------------------------------------------------------------
-	// VideoManager — ensures only one inline video plays at a time.
+	// VideoManager: ensures only one inline video plays at a time.
 	// Mirrors alerta-boe/lib/videoManager.ts
 	// -------------------------------------------------------------------------
 	var VideoManager = {
@@ -161,7 +161,7 @@
 	};
 
 	// -------------------------------------------------------------------------
-	// ScrollLock — refcounted so multiple overlays don't fight over body overflow.
+	// ScrollLock: refcounted so multiple overlays don't fight over body overflow.
 	// -------------------------------------------------------------------------
 	var ScrollLock = {
 		count: 0,
@@ -180,7 +180,7 @@
 	};
 
 	// -------------------------------------------------------------------------
-	// ItemModal — full-item content with History API integration.
+	// ItemModal: full-item content with History API integration.
 	// -------------------------------------------------------------------------
 	var currentItemModal = null;
 
@@ -275,7 +275,7 @@
 	}
 
 	function onDocumentClick(e) {
-		// 1) Media cell — opens the lightbox UNLESS the grid is marked
+		// 1) Media cell: opens the lightbox UNLESS the grid is marked
 		//    data-nc-disable-lightbox (used by list cards, where the whole
 		//    card opens the news modal instead).
 		var mediaTrigger = findAncestor(e.target, function (n) {
@@ -352,12 +352,12 @@
 	}
 
 	// -------------------------------------------------------------------------
-	// InfiniteScroll — IntersectionObserver on .nc-feed-sentinel.
+	// InfiniteScroll: IntersectionObserver on .nc-feed-sentinel.
 	// -------------------------------------------------------------------------
 	var FeedPager = {
 		loading: false,
 		// wp_localize_script serializes everything as strings, so coerce the
-		// numerics — otherwise "1" + 1 === "11" and we'd request a bogus page.
+		// numerics: otherwise "1" + 1 === "11" and we'd request a bogus page.
 		page: parseInt(NC_DATA.page, 10) || 1,
 		hasNext: !!NC_DATA.hasNext,
 		pageSize: parseInt(NC_DATA.pageSize, 10) || 20,
@@ -563,7 +563,7 @@
 	};
 
 	// -------------------------------------------------------------------------
-	// SourceFilter — upgrades the [news_sources] panel into a multi-select feed
+	// SourceFilter: upgrades the [news_sources] panel into a multi-select feed
 	// filter. Progressive enhancement: only activates when a .nc-feed exists on
 	// the page; otherwise the rows stay inert text references.
 	// -------------------------------------------------------------------------
@@ -636,7 +636,7 @@
 	};
 
 	// -------------------------------------------------------------------------
-	// Inline video autoplay — IntersectionObserver, plays when ≥50% visible.
+	// Inline video autoplay: IntersectionObserver, plays when ≥50% visible.
 	// -------------------------------------------------------------------------
 	function initInlineVideo(video) {
 		var observer = new IntersectionObserver(

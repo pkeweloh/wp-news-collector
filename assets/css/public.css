@@ -1,5 +1,5 @@
 /*
- * Design tokens — override any of these in your theme CSS to match its design language.
+ * Design tokens: override any of these in your theme CSS to match its design language.
  * Example:
  *   :root { --nc-radius: 0; --nc-accent: #e45d12; --nc-card-bg: #f5f5f5; }
  */
@@ -64,7 +64,7 @@
 .nc-item-text p { margin: 0 0 8px; }
 
 /* -------------------------------------------------------------------------
- * Media grid — N=1/2/3/4 layout
+ * Media grid: N=1/2/3/4 layout
  * ------------------------------------------------------------------------- */
 .nc-item-media { margin-bottom: 12px; }
 .nc-item-media-grid {
@@ -146,7 +146,7 @@ button.nc-media-cell:hover .nc-media-cell__thumb { transform: scale(1.03); }
 	display: block;
 }
 
-/* too_big videos — Telegram link with poster and play icon. */
+/* too_big videos: Telegram link with poster and play icon. */
 .nc-item-tg-video {
 	display: block;
 	text-decoration: none;
@@ -161,7 +161,7 @@ button.nc-media-cell:hover .nc-media-cell__thumb { transform: scale(1.03); }
 .nc-tg-video-thumb img { width: 100%; display: block; }
 
 /* -------------------------------------------------------------------------
- * Single image — no crop, natural dimensions (mirrors alerta-boe news-card-img-wrap)
+ * Single image: no crop, natural dimensions (mirrors alerta-boe news-card-img-wrap)
  * ------------------------------------------------------------------------- */
 .nc-item-img-wrap {
 	display: flex;
@@ -200,7 +200,7 @@ button.nc-media-cell:hover .nc-media-cell__thumb { transform: scale(1.03); }
 .nc-item--detail .nc-item-img { width: 100%; max-height: none; }
 
 /* -------------------------------------------------------------------------
- * Article card — vertical layout with left accent border (mirrors alerta-boe)
+ * Article card: vertical layout with left accent border (mirrors alerta-boe)
  * ------------------------------------------------------------------------- */
 .nc-item-article {
 	display: block;
@@ -361,7 +361,7 @@ button.nc-media-cell:hover .nc-media-cell__thumb { transform: scale(1.03); }
 }
 
 /* -------------------------------------------------------------------------
- * Item modal — full card content over the feed (pushState pattern).
+ * Item modal: full card content over the feed (pushState pattern).
  * ------------------------------------------------------------------------- */
 .nc-item-modal {
 	position: fixed;
@@ -430,7 +430,7 @@ button.nc-media-cell:hover .nc-media-cell__thumb { transform: scale(1.03); }
 }
 
 /* -------------------------------------------------------------------------
- * Feed layout — single column (sidebar removed from feed; use [news_sources]).
+ * Feed layout: single column (sidebar removed from feed; use [news_sources]).
  * The nc-feed-sidebar styles below are kept for the [news_sources] shortcode.
  * ------------------------------------------------------------------------- */
 
@@ -585,7 +585,7 @@ button.nc-media-cell:hover .nc-media-cell__thumb { transform: scale(1.03); }
 }
 
 /* -------------------------------------------------------------------------
- * Sidebar widget: Últimas noticias — card style
+ * Latest-news sidebar widget: card style
  * ------------------------------------------------------------------------- */
 .nc-widget-list {
 	list-style: none;
