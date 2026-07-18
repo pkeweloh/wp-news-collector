@@ -131,7 +131,10 @@ class NC_Template_Helpers {
 		if ( '' === $base ) {
 			$base = wp_strip_all_tags( (string) ( $item['text'] ?? '' ) );
 		}
-		$slug = sanitize_title( $base );
+		// sanitize_title keeps %-encoded octets (emoji/non-latin) that leak into
+		// the URL, so reduce to plain ASCII [a-z0-9] here.
+		$base = strtolower( remove_accents( $base ) );
+		$slug = trim( (string) preg_replace( '/[^a-z0-9]+/', '-', $base ), '-' );
 		if ( '' === $slug ) {
 			return '';
 		}
