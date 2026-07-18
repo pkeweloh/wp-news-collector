@@ -576,3 +576,39 @@ msgstr "reintento pendiente"
 
 msgid "next %s"
 msgstr "próximo %s"
+
+msgid "Orphaned upload rows"
+msgstr "Filas de subida huérfanas"
+
+msgid "Upload log rows whose media is no longer referenced by any item. Deleting them only removes the tracking row; the Catbox file is never touched."
+msgstr "Filas del registro de subidas cuyo medio ya no está referenciado por ningún elemento. Al eliminarlas solo se borra la fila de seguimiento; el archivo de Catbox no se toca."
+
+msgid "Last run: %1$s: %2$d orphan(s) of %3$d rows, %4$d deleted."
+msgstr "Última ejecución: %1$s: %2$d huérfana(s) de %3$d filas, %4$d eliminadas."
+
+msgid "dry-run: nothing deleted yet."
+msgstr "simulación: aún no se ha eliminado nada."
+
+msgid "Scan for orphans"
+msgstr "Buscar huérfanas"
+
+msgid "Delete orphans"
+msgstr "Eliminar huérfanas"
+
+msgid "Delete all orphaned upload log rows? The Catbox files are not affected."
+msgstr "¿Eliminar todas las filas huérfanas del registro de subidas? Los archivos de Catbox no se ven afectados."
+
+msgid "Orphan scan completed."
+msgstr "Búsqueda de huérfanas completada."
+
+msgid "Orphaned upload rows deleted."
+msgstr "Filas de subida huérfanas eliminadas."
+
+msgid "Catbox: Uploads"
+msgstr "Catbox: Subidas"
+
+msgid "Uploads"
+msgstr "Subidas"
+
+msgid "Manage tracked uploads and orphan cleanup"
+msgstr "Gestionar subidas rastreadas y limpieza de huérfanas"

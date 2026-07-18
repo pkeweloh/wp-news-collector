@@ -11,6 +11,7 @@ require_once NC_PLUGIN_DIR . 'admin/class-settings-page.php';
 require_once NC_PLUGIN_DIR . 'admin/class-sources-page.php';
 require_once NC_PLUGIN_DIR . 'admin/class-items-page.php';
 require_once NC_PLUGIN_DIR . 'admin/class-catbox-page.php';
+require_once NC_PLUGIN_DIR . 'admin/class-catbox-uploads-page.php';
 
 class NC_Admin {
 
@@ -18,6 +19,7 @@ class NC_Admin {
 	private NC_Sources_Page $sources_page;
 	private NC_Items_Page $items_page;
 	private NC_Catbox_Page $catbox_page;
+	private NC_Catbox_Uploads_Page $catbox_uploads_page;
 
 	public function __construct(
 		private NC_Source_Repository $sources,
@@ -31,6 +33,7 @@ class NC_Admin {
 		$this->sources_page  = new NC_Sources_Page( $this->sources );
 		$this->items_page    = new NC_Items_Page( $this->items );
 		$this->catbox_page   = new NC_Catbox_Page( $this->uploads, $this->syncer, $this->covers, $this->items );
+		$this->catbox_uploads_page = new NC_Catbox_Uploads_Page( $this->uploads );
 	}
 
 	public function register_menus(): void {
@@ -74,6 +77,14 @@ class NC_Admin {
 			'manage_options',
 			'nc_catbox',
 			[ $this->catbox_page, 'render' ]
+		);
+		add_submenu_page(
+			'nc_items',
+			__( 'Catbox: Uploads', 'wp-news-collector' ),
+			__( 'Uploads', 'wp-news-collector' ),
+			'manage_options',
+			'nc_catbox_uploads',
+			[ $this->catbox_uploads_page, 'render' ]
 		);
 	}
 
@@ -381,18 +392,30 @@ class NC_Admin {
 		exit;
 	}
 
+	public function handle_catbox_cleanup(): void {
+		$this->ensure_admin();
+		check_admin_referer( 'nc_catbox_cleanup' );
+		$delete = isset( $_POST['mode'] ) && 'delete' === sanitize_key( (string) wp_unslash( $_POST['mode'] ) );
+		// DB-only single-pass scan: fast enough to run synchronously for an
+		// immediate report, unlike the network-bound sync/retry actions.
+		$this->syncer->cleanup_orphans( $delete );
+		$msg = $delete ? 'cleanup_deleted' : 'cleanup_scanned';
+		wp_safe_redirect( add_query_arg( [ 'page' => 'nc_catbox_uploads', 'nc_msg' => $msg ], admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
 	public function handle_retry_catbox_upload(): void {
 		$this->ensure_admin();
 		check_admin_referer( 'nc_retry_upload' );
 		$id       = isset( $_POST['upload_id'] ) ? (int) $_POST['upload_id'] : 0;
 		$settings = NC_Plugin::get_settings();
 		if ( empty( $settings['catbox_enabled'] ) ) {
-			wp_safe_redirect( add_query_arg( [ 'page' => 'nc_catbox', 'nc_msg' => 'catbox_disabled' ], admin_url( 'admin.php' ) ) );
+			wp_safe_redirect( add_query_arg( [ 'page' => 'nc_catbox_uploads', 'nc_msg' => 'catbox_disabled' ], admin_url( 'admin.php' ) ) );
 			exit;
 		}
 		$result = $this->syncer->retry_upload( $id );
 		$msg    = ! empty( $result['ok'] ) ? 'retry_ok' : 'retry_failed';
-		wp_safe_redirect( add_query_arg( [ 'page' => 'nc_catbox', 'uf' => 'failed', 'nc_msg' => $msg ], admin_url( 'admin.php' ) ) );
+		wp_safe_redirect( add_query_arg( [ 'page' => 'nc_catbox_uploads', 'uf' => 'failed', 'nc_msg' => $msg ], admin_url( 'admin.php' ) ) );
 		exit;
 	}
 

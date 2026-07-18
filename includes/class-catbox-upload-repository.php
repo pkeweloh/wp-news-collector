@@ -285,6 +285,43 @@ class NC_Catbox_Upload_Repository {
 		];
 	}
 
+	// Orphan cleanup
+
+	/**
+	 * Every upload row's identity, for the in-memory orphan scan.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_all_for_orphan_scan(): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results(
+			"SELECT id, item_guid, upload_type, original_url, catbox_url, error FROM {$this->uploads_table}",
+			ARRAY_A
+		);
+		return is_array( $rows ) ? $rows : [];
+	}
+
+	/**
+	 * Delete upload rows by id, chunked. Returns the number of rows removed.
+	 *
+	 * @param int[] $ids
+	 */
+	public function delete_by_ids( array $ids ): int {
+		if ( empty( $ids ) ) {
+			return 0;
+		}
+		global $wpdb;
+		$ids     = array_values( array_unique( array_map( 'intval', $ids ) ) );
+		$deleted = 0;
+		foreach ( array_chunk( $ids, 500 ) as $chunk ) {
+			$placeholders = implode( ',', array_fill( 0, count( $chunk ), '%d' ) );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$deleted += (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$this->uploads_table} WHERE id IN ({$placeholders})", ...$chunk ) );
+		}
+		return $deleted;
+	}
+
 	// Albums
 
 	/**

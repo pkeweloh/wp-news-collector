@@ -124,6 +124,58 @@ class NC_Catbox_Syncer {
 		return $stats;
 	}
 
+	/**
+	 * Remove orphaned nc_catbox_uploads rows: those whose media (catbox_url or
+	 * original_url) is no longer referenced by any live item. These accrue from
+	 * items that never inserted, or media edited/removed later, and they clutter
+	 * the log and inflate retry/stats counts (they can also starve the retry
+	 * queue head). Deletes ONLY the log row: the Catbox file is never touched,
+	 * because the account is shared; legit tracking self-heals via the sync
+	 * phase-1 re-tracking. $delete=false is a dry-run that only reports. Single
+	 * in-memory scan, O(items + uploads). Result saved to nc_catbox_cleanup_stats.
+	 *
+	 * @return array{total:int, referenced:int, orphans:int, dead_guid:int, failed:int, deleted:int, dry_run:bool, ran_at:string}
+	 */
+	public function cleanup_orphans( bool $delete = false ): array {
+		$referenced = $this->items->get_referenced_media_urls();
+		$live_guids = $this->items->get_all_guids();
+		$rows       = $this->uploads->get_all_for_orphan_scan();
+
+		$orphan_ids = [];
+		$dead_guid  = 0;
+		$failed     = 0;
+		foreach ( $rows as $row ) {
+			$catbox   = (string) ( $row['catbox_url'] ?? '' );
+			$original = (string) ( $row['original_url'] ?? '' );
+			if ( ( '' !== $catbox && isset( $referenced[ $catbox ] ) )
+				|| ( '' !== $original && isset( $referenced[ $original ] ) ) ) {
+				continue;
+			}
+			$orphan_ids[] = (int) ( $row['id'] ?? 0 );
+			if ( ! isset( $live_guids[ (string) ( $row['item_guid'] ?? '' ) ] ) ) {
+				$dead_guid++;
+			}
+			if ( '' !== (string) ( $row['error'] ?? '' ) ) {
+				$failed++;
+			}
+		}
+
+		$deleted = ( $delete && ! empty( $orphan_ids ) ) ? $this->uploads->delete_by_ids( $orphan_ids ) : 0;
+
+		$stats = [
+			'total'      => count( $rows ),
+			'referenced' => count( $referenced ),
+			'orphans'    => count( $orphan_ids ),
+			'dead_guid'  => $dead_guid,
+			'failed'     => $failed,
+			'deleted'    => $deleted,
+			'dry_run'    => ! $delete,
+			'ran_at'     => gmdate( 'Y-m-d H:i:s' ),
+		];
+		update_option( 'nc_catbox_cleanup_stats', $stats );
+		return $stats;
+	}
+
 	/** Whether (upload_type, original_url) is still a live, un-uploaded piece of its item. */
 	private function is_piece_linked( string $guid, string $upload_type, string $original_url ): bool {
 		if ( '' === $guid || '' === $original_url ) {

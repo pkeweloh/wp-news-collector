@@ -214,6 +214,92 @@ class NC_Item_Repository {
 	}
 
 	/**
+	 * Every media URL any live item currently references (original + Catbox),
+	 * as a set keyed by URL for O(1) membership tests. Used by the orphan-uploads
+	 * cleanup to tell which nc_catbox_uploads rows are still in use.
+	 *
+	 * @return array<string, true>
+	 */
+	public function get_referenced_media_urls(): array {
+		global $wpdb;
+		$has_audios = $this->column_exists( 'audios' );
+		$cols       = 'images, videos, article' . ( $has_audios ? ', audios' : '' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( "SELECT {$cols} FROM {$this->table}", ARRAY_A );
+		$set  = [];
+		foreach ( (array) $rows as $row ) {
+			foreach ( $this->decode_json_array( $row['images'] ?? '' ) as $u ) {
+				$u = (string) $u;
+				if ( '' !== $u ) {
+					$set[ $u ] = true;
+				}
+			}
+			foreach ( $this->decode_json_array( $row['videos'] ?? '' ) as $v ) {
+				if ( is_array( $v ) ) {
+					foreach ( [ 'poster_url', 'original_url', 'catbox_url' ] as $k ) {
+						$u = (string) ( $v[ $k ] ?? '' );
+						if ( '' !== $u ) {
+							$set[ $u ] = true;
+						}
+					}
+				}
+			}
+			$art = json_decode( (string) ( $row['article'] ?? '' ), true );
+			if ( is_array( $art ) && '' !== (string) ( $art['image_url'] ?? '' ) ) {
+				$set[ (string) $art['image_url'] ] = true;
+			}
+			if ( $has_audios ) {
+				foreach ( $this->decode_json_array( $row['audios'] ?? '' ) as $a ) {
+					if ( is_array( $a ) ) {
+						foreach ( [ 'original_url', 'catbox_url' ] as $k ) {
+							$u = (string) ( $a[ $k ] ?? '' );
+							if ( '' !== $u ) {
+								$set[ $u ] = true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return $set;
+	}
+
+	/**
+	 * Set of every live item guid, keyed by guid, for the orphan-cleanup
+	 * "from a missing item" diagnostic.
+	 *
+	 * @return array<string, true>
+	 */
+	public function get_all_guids(): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$guids = $wpdb->get_col( "SELECT guid FROM {$this->table}" );
+		$set   = [];
+		foreach ( (array) $guids as $g ) {
+			$set[ (string) $g ] = true;
+		}
+		return $set;
+	}
+
+	/** @return array<int, mixed> */
+	private function decode_json_array( $raw ): array {
+		if ( is_string( $raw ) && '' !== $raw ) {
+			$decoded = json_decode( $raw, true );
+			return is_array( $decoded ) ? $decoded : [];
+		}
+		return [];
+	}
+
+	private function column_exists( string $col ): bool {
+		global $wpdb;
+		$found = $wpdb->get_var(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare( "SHOW COLUMNS FROM {$this->table} LIKE %s", $col )
+		);
+		return null !== $found;
+	}
+
+	/**
 	 * A few item IDs of a source whose images contain the given Catbox URL,
 	 * for reviewing a cover candidate. Matches on the bare filename to dodge
 	 * JSON slash-escaping in the stored column.

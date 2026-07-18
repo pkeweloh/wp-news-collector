@@ -1,0 +1,247 @@
+<?php
+/**
+ * Admin view: Catbox tracked uploads + orphan cleanup.
+ *
+ * @package wp-news-collector
+ * @var int                        $total_uploads
+ * @var int                        $failed
+ * @var array<string, mixed>|null  $cleanup_stats
+ * @var string                     $msg
+ * @var array<string, mixed>       $uploads_data
+ * @var string                     $uploads_filter
+ * @var array<string, string>      $album_month_map
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+$msg_map = [
+	'retry_ok'        => [ 'success', __( 'Retry completed: upload succeeded.', 'wp-news-collector' ) ],
+	'retry_failed'    => [ 'error',   __( 'Retry failed: the upload could not be completed.', 'wp-news-collector' ) ],
+	'catbox_disabled' => [ 'error',   __( 'Catbox is disabled. Enable it in Settings first.', 'wp-news-collector' ) ],
+	'cleanup_scanned' => [ 'success', __( 'Orphan scan completed.', 'wp-news-collector' ) ],
+	'cleanup_deleted' => [ 'success', __( 'Orphaned upload rows deleted.', 'wp-news-collector' ) ],
+];
+
+$base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.php' ) );
+?>
+<div class="wrap">
+<h1><?php esc_html_e( 'Catbox: Uploads', 'wp-news-collector' ); ?></h1>
+
+<?php if ( isset( $msg_map[ $msg ] ) ) : ?>
+	<div class="notice notice-<?php echo esc_attr( $msg_map[ $msg ][0] ); ?> is-dismissible">
+		<p><?php echo esc_html( $msg_map[ $msg ][1] ); ?></p>
+	</div>
+<?php endif; ?>
+
+<!-- -----------------------------------------------------------------------
+     Orphaned upload rows
+--------------------------------------------------------------------- -->
+<div class="postbox" style="padding:1rem 1.25rem;max-width:700px;margin:1rem 0 1.5rem;">
+	<h2 style="margin-top:0"><?php esc_html_e( 'Orphaned upload rows', 'wp-news-collector' ); ?></h2>
+	<p class="description" style="margin:0 0 .5rem">
+		<?php esc_html_e( 'Upload log rows whose media is no longer referenced by any item. Deleting them only removes the tracking row; the Catbox file is never touched.', 'wp-news-collector' ); ?>
+	</p>
+	<?php if ( is_array( $cleanup_stats ) ) : ?>
+		<p style="margin:0 0 .5rem">
+			<?php
+			printf(
+				// translators: 1: date/time, 2: orphan count, 3: total rows, 4: deleted count
+				esc_html__( 'Last run: %1$s: %2$d orphan(s) of %3$d rows, %4$d deleted.', 'wp-news-collector' ),
+				esc_html( NC_Template_Helpers::format_date_es( (string) ( $cleanup_stats['ran_at'] ?? '' ) ) ),
+				(int) ( $cleanup_stats['orphans'] ?? 0 ),
+				(int) ( $cleanup_stats['total'] ?? 0 ),
+				(int) ( $cleanup_stats['deleted'] ?? 0 )
+			);
+			?>
+			<?php if ( ! empty( $cleanup_stats['dry_run'] ) && (int) ( $cleanup_stats['orphans'] ?? 0 ) > 0 ) : ?>
+				<span class="description">&middot; <?php esc_html_e( 'dry-run: nothing deleted yet.', 'wp-news-collector' ); ?></span>
+			<?php endif; ?>
+		</p>
+	<?php endif; ?>
+	<div style="display:flex;gap:.5rem;align-items:flex-start">
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php wp_nonce_field( 'nc_catbox_cleanup' ); ?>
+			<input type="hidden" name="action" value="nc_catbox_cleanup" />
+			<input type="hidden" name="mode" value="scan" />
+			<?php submit_button( __( 'Scan for orphans', 'wp-news-collector' ), 'secondary', 'submit', false ); ?>
+		</form>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
+			onsubmit="return confirm('<?php echo esc_js( __( 'Delete all orphaned upload log rows? The Catbox files are not affected.', 'wp-news-collector' ) ); ?>');">
+			<?php wp_nonce_field( 'nc_catbox_cleanup' ); ?>
+			<input type="hidden" name="action" value="nc_catbox_cleanup" />
+			<input type="hidden" name="mode" value="delete" />
+			<?php submit_button( __( 'Delete orphans', 'wp-news-collector' ), 'delete', 'submit', false ); ?>
+		</form>
+	</div>
+</div>
+
+<!-- -----------------------------------------------------------------------
+     Uploads list
+--------------------------------------------------------------------- -->
+<h2 style="margin-top:1rem"><?php esc_html_e( 'Tracked uploads', 'wp-news-collector' ); ?></h2>
+
+<ul class="subsubsub" style="margin-bottom:.5rem">
+	<?php
+	$filters = [
+		'all'        => __( 'All', 'wp-news-collector' ),
+		'unassigned' => __( 'No album', 'wp-news-collector' ),
+		'failed'     => sprintf( '%s (%d)', __( 'Failed', 'wp-news-collector' ), (int) $failed ),
+	];
+	$f_links = [];
+	foreach ( $filters as $fkey => $flabel ) {
+		$class     = $fkey === $uploads_filter ? 'current' : '';
+		$f_links[] = sprintf(
+			'<li><a href="%s" class="%s">%s</a></li>',
+			esc_url( add_query_arg( 'uf', $fkey, $base_url ) ),
+			esc_attr( $class ),
+			esc_html( $flabel )
+		);
+	}
+	echo implode( ' | ', $f_links ); // phpcs:ignore WordPress.Security.EscapeOutput
+	?>
+</ul>
+
+<?php if ( empty( $uploads_data['items'] ) ) : ?>
+	<p class="description"><?php esc_html_e( 'No uploads to show.', 'wp-news-collector' ); ?></p>
+<?php else : ?>
+<table class="wp-list-table widefat fixed striped">
+	<thead>
+		<tr>
+			<th><?php esc_html_e( 'Catbox URL', 'wp-news-collector' ); ?></th>
+			<th style="width:100px"><?php esc_html_e( 'Type', 'wp-news-collector' ); ?></th>
+			<th style="width:140px"><?php esc_html_e( 'Source', 'wp-news-collector' ); ?></th>
+			<th style="width:90px"><?php esc_html_e( 'Album', 'wp-news-collector' ); ?></th>
+			<th><?php esc_html_e( 'Error', 'wp-news-collector' ); ?></th>
+			<th style="width:140px"><?php esc_html_e( 'Uploaded', 'wp-news-collector' ); ?></th>
+		</tr>
+	</thead>
+	<tbody>
+		<?php foreach ( $uploads_data['items'] as $upload ) : ?>
+			<?php
+			$up_catbox = (string) ( $upload['catbox_url'] ?? '' );
+			$up_error  = (string) ( $upload['error'] ?? '' );
+			$is_failed = '' === $up_catbox;
+			?>
+		<tr<?php echo $is_failed ? ' style="background:#fcf0f1"' : ''; ?>>
+			<td>
+				<?php if ( $is_failed ) : ?>
+					<span style="color:#b32d2e;font-weight:600"><?php esc_html_e( 'Failed', 'wp-news-collector' ); ?></span>
+					<?php $orig = (string) ( $upload['original_url'] ?? '' ); ?>
+					<?php if ( '' !== $orig ) : ?>
+						<br><span class="description" style="word-break:break-all"><?php echo esc_html( $orig ); ?></span>
+					<?php endif; ?>
+				<?php else : ?>
+					<a href="<?php echo esc_url( $up_catbox ); ?>" target="_blank" rel="noreferrer noopener">
+						<?php echo esc_html( basename( $up_catbox ) ); ?>
+					</a>
+				<?php endif; ?>
+			</td>
+			<td><?php echo esc_html( (string) $upload['upload_type'] ); ?></td>
+			<td><?php echo esc_html( (string) ( $upload['source_name'] ?: $upload['source'] ) ); ?></td>
+			<td>
+				<?php if ( ! empty( $upload['album_id'] ) ) : ?>
+					<?php
+					$up_album_id = (string) $upload['album_id'];
+					$up_month    = $album_month_map[ $up_album_id ] ?? '';
+					$up_label    = '' !== $up_month
+						? NC_Plugin::catbox_album_name( $up_month )
+						: $up_album_id;
+					?>
+					<a href="<?php echo esc_url( 'https://catbox.moe/c/' . $up_album_id ); ?>" target="_blank" rel="noreferrer noopener">
+						<?php echo esc_html( $up_label ); ?>
+					</a>
+				<?php else : ?>
+					<span style="color:#888">—</span>
+				<?php endif; ?>
+			</td>
+			<td>
+				<?php if ( $is_failed ) : ?>
+					<?php if ( '' !== $up_error ) : ?>
+						<details class="nc-upload-error">
+							<summary style="cursor:pointer;color:#b32d2e"><?php esc_html_e( 'Show error', 'wp-news-collector' ); ?></summary>
+							<p class="description" style="margin:.4rem 0;word-break:break-word"><?php echo esc_html( $up_error ); ?></p>
+						</details>
+					<?php endif; ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:.25rem 0 0">
+						<?php wp_nonce_field( 'nc_retry_upload' ); ?>
+						<input type="hidden" name="action" value="nc_retry_upload" />
+						<input type="hidden" name="upload_id" value="<?php echo (int) $upload['id']; ?>" />
+						<button type="submit" class="button button-small"><?php esc_html_e( 'Retry', 'wp-news-collector' ); ?></button>
+					</form>
+						<?php
+						// Mirrors alerta-boe's backoffLabel: "N reintentos · próximo <date>",
+						// or "reintento pendiente" once next_retry_at is due.
+						$up_retries = (int) ( $upload['retry_count'] ?? 0 );
+						$up_next    = (string) ( $upload['next_retry_at'] ?? '' );
+						if ( $up_retries > 0 || '' !== $up_next ) :
+							$backoff = [];
+							if ( $up_retries > 0 ) {
+								$backoff[] = sprintf( _n( '%d retry', '%d retries', $up_retries, 'wp-news-collector' ), $up_retries );
+							}
+							if ( '' !== $up_next ) {
+								$due_ts    = strtotime( $up_next . ' UTC' );
+								$backoff[] = ( false === $due_ts || $due_ts <= time() )
+									? __( 'retry pending', 'wp-news-collector' )
+									: sprintf(
+										/* translators: %s: next retry date/time */
+										__( 'next %s', 'wp-news-collector' ),
+										NC_Template_Helpers::format_date_es( $up_next )
+									);
+							}
+							?>
+							<p class="description" style="margin:.25rem 0 0"><?php echo esc_html( implode( ' · ', $backoff ) ); ?></p>
+						<?php endif; ?>
+				<?php else : ?>
+					<span style="color:#888">—</span>
+				<?php endif; ?>
+			</td>
+			<td><?php echo esc_html( (string) $upload['uploaded_at'] ); ?></td>
+		</tr>
+		<?php endforeach; ?>
+	</tbody>
+</table>
+<script>
+// Exclusive accordion: opening one row's error closes the others.
+document.querySelectorAll('.nc-upload-error').forEach(function (d) {
+	d.addEventListener('toggle', function () {
+		if (d.open) {
+			document.querySelectorAll('.nc-upload-error[open]').forEach(function (o) {
+				if (o !== d) { o.open = false; }
+			});
+		}
+	});
+});
+</script>
+
+<?php if ( (int) $uploads_data['total_pages'] > 1 ) : ?>
+<div class="tablenav bottom" style="margin-top:.5rem">
+	<div class="tablenav-pages">
+		<?php
+		printf(
+			'<span class="displaying-num">%s</span>',
+			sprintf(
+				// translators: %d: total upload count
+				esc_html__( '%d items', 'wp-news-collector' ),
+				(int) $uploads_data['total_items']
+			)
+		);
+		$prev_url = $uploads_data['has_prev']
+			? esc_url( add_query_arg( [ 'uf' => $uploads_filter, 'upaged' => $uploads_data['page'] - 1 ], $base_url ) )
+			: '';
+		$next_url = $uploads_data['has_next']
+			? esc_url( add_query_arg( [ 'uf' => $uploads_filter, 'upaged' => $uploads_data['page'] + 1 ], $base_url ) )
+			: '';
+		if ( $prev_url ) {
+			echo '<a class="button" href="' . $prev_url . '">&laquo; ' . esc_html__( 'Previous', 'wp-news-collector' ) . '</a> ';
+		}
+		echo '<span>' . (int) $uploads_data['page'] . ' / ' . (int) $uploads_data['total_pages'] . '</span>';
+		if ( $next_url ) {
+			echo ' <a class="button" href="' . $next_url . '">' . esc_html__( 'Next', 'wp-news-collector' ) . ' &raquo;</a>';
+		}
+		?>
+	</div>
+</div>
+<?php endif; ?>
+<?php endif; ?>
+
+</div>

@@ -64,6 +64,7 @@ class NC_Plugin {
 			add_action( 'admin_post_nc_run_now', [ $this->admin, 'handle_run_now' ] );
 			add_action( 'admin_post_nc_backfill_catbox', [ $this->admin, 'handle_backfill_catbox' ] );
 			add_action( 'admin_post_nc_catbox_sync', [ $this->admin, 'handle_catbox_sync' ] );
+			add_action( 'admin_post_nc_catbox_cleanup', [ $this->admin, 'handle_catbox_cleanup' ] );
 			add_action( 'admin_post_nc_retry_upload', [ $this->admin, 'handle_retry_catbox_upload' ] );
 			add_action( 'admin_post_nc_retry_item_uploads', [ $this->admin, 'handle_retry_item_uploads' ] );
 			add_action( 'admin_post_nc_detect_covers', [ $this->admin, 'handle_detect_covers' ] );
