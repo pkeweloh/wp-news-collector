@@ -95,6 +95,8 @@ class NC_Catbox_Syncer {
 			$original = (string) ( $row['original_url'] ?? '' );
 
 			if ( ! $this->is_piece_linked( $guid, $type, $original ) ) {
+				// Park it: a NULL next_retry_at would keep it at the queue head forever.
+				$this->uploads->park_orphan( $id );
 				$stats['orphaned']++;
 				continue;
 			}

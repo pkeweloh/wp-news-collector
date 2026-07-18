@@ -167,6 +167,21 @@ class NC_Catbox_Upload_Repository {
 		);
 	}
 
+	// Far-future so RETRYABLE_WHERE (next_retry_at <= now) excludes it from query + count.
+	private const ORPHAN_PARK_UNTIL = '2999-01-01 00:00:00';
+
+	/** Park an orphan so it stops hogging the NULL-first head of the retry queue. */
+	public function park_orphan( int $id ): void {
+		global $wpdb;
+		$wpdb->update(
+			$this->uploads_table,
+			[ 'next_retry_at' => self::ORPHAN_PARK_UNTIL ],
+			[ 'id' => $id ],
+			[ '%s' ],
+			[ '%d' ]
+		);
+	}
+
 	/**
 	 * Look up the original (source) URL we logged for a given Catbox URL.
 	 * Returns '' if none is tracked.
