@@ -117,7 +117,7 @@ class NC_Activator {
 		// Register the rewrite rule explicitly so flush_rewrite_rules() picks it up,
 		// since the `init` hook has not yet fired during activation.
 		$slug = NC_Rewrite::slug();
-		add_rewrite_rule( '^' . $slug . '/([0-9]+)/?$', 'index.php?' . NC_Rewrite::QUERY_VAR . '=$matches[1]', 'top' );
+		add_rewrite_rule( '^' . $slug . '/([0-9]+)(?:/[^/]+)?/?$', 'index.php?' . NC_Rewrite::QUERY_VAR . '=$matches[1]', 'top' );
 		flush_rewrite_rules( false );
 	}
 

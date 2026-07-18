@@ -112,7 +112,9 @@ $delete_url = wp_nonce_url(
 --------------------------------------------------------------------- -->
 <table class="widefat" style="max-width:900px;margin-bottom:1.5rem">
 	<tbody>
-		<tr><th><?php esc_html_e( 'ID', 'wp-news-collector' ); ?></th><td>#<?php echo (int) $id; ?>: <a href="<?php echo esc_url( NC_Plugin::item_permalink( $id ) ); ?>" target="_blank" rel="noreferrer noopener"><?php esc_html_e( 'View', 'wp-news-collector' ); ?> ↗</a></td></tr>
+		<?php $it_slug = NC_Template_Helpers::item_slug( $item ); ?>
+		<tr><th><?php esc_html_e( 'ID', 'wp-news-collector' ); ?></th><td>#<?php echo (int) $id; ?>: <a href="<?php echo esc_url( NC_Plugin::item_permalink( $id, $it_slug ) ); ?>" target="_blank" rel="noreferrer noopener"><?php esc_html_e( 'View', 'wp-news-collector' ); ?> ↗</a></td></tr>
+		<tr><th><?php esc_html_e( 'Slug', 'wp-news-collector' ); ?></th><td><?php echo '' !== $it_slug ? '<code>' . esc_html( $it_slug ) . '</code>' : '—'; ?></td></tr>
 		<tr><th><?php esc_html_e( 'GUID', 'wp-news-collector' ); ?></th><td><code><?php echo esc_html( (string) $item['guid'] ); ?></code>: <a href="<?php echo esc_url( (string) $item['guid'] ); ?>" target="_blank" rel="noreferrer noopener">Telegram ↗</a></td></tr>
 		<tr><th><?php esc_html_e( 'Source', 'wp-news-collector' ); ?></th><td><?php echo esc_html( (string) $item['source_name'] ); ?> <em>(<?php echo esc_html( (string) $item['source'] ); ?>)</em></td></tr>
 		<tr><th><?php esc_html_e( 'Published', 'wp-news-collector' ); ?></th><td><?php echo esc_html( (string) $item['published_at'] ); ?></td></tr>

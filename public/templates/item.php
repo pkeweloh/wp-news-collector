@@ -21,7 +21,7 @@ $allowed = [
 ];
 
 $article    = is_array( $item['article'] ?? null ) ? $item['article'] : null;
-$permalink  = NC_Plugin::item_permalink( (int) $item['id'] );
+$permalink  = NC_Plugin::item_permalink( (int) $item['id'], NC_Template_Helpers::item_slug( $item ) );
 $media_list = $show_images || $show_videos ? NC_Template_Helpers::build_media_list( $item ) : [];
 $too_big    = $show_videos ? NC_Template_Helpers::extract_too_big_videos( $item ) : [];
 $audios     = $show_videos ? NC_Template_Helpers::build_audio_list( $item ) : [];

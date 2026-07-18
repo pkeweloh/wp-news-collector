@@ -23,7 +23,8 @@ class NC_Rewrite {
 	}
 
 	public function add_rules(): void {
-		$regex = '^' . self::slug() . '/([0-9]+)/?$';
+		// Optional trailing /{title-slug} is decorative and ignored: only the id matches.
+		$regex = '^' . self::slug() . '/([0-9]+)(?:/[^/]+)?/?$';
 		add_rewrite_rule( $regex, 'index.php?' . self::QUERY_VAR . '=$matches[1]', 'top' );
 	}
 

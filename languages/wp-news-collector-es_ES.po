@@ -627,3 +627,6 @@ msgstr "ID o texto…"
 
 msgid "Clear"
 msgstr "Limpiar"
+
+msgid "Slug"
+msgstr "Slug"

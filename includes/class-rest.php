@@ -83,7 +83,7 @@ class NC_Rest {
 		return new WP_REST_Response(
 			[
 				'id'        => $id,
-				'permalink' => NC_Plugin::item_permalink( $id ),
+				'permalink' => NC_Plugin::item_permalink( $id, NC_Template_Helpers::item_slug( $item ) ),
 				'title'     => $title,
 				'html'      => $html,
 			]

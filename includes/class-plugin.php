@@ -89,12 +89,17 @@ class NC_Plugin {
 	}
 
 	/**
-	 * Public permalink for a single item. Honors the site's permalink structure:
-	 * pretty permalinks → /noticia/{id}; plain → ?nc_item={id}.
+	 * Public permalink for a single item. Pretty permalinks → /noticia/{id} (plus
+	 * an optional decorative /{slug}); plain → ?nc_item={id}. The slug is ignored
+	 * on read, so it is purely additive.
 	 */
-	public static function item_permalink( int $id ): string {
+	public static function item_permalink( int $id, string $slug = '' ): string {
 		if ( get_option( 'permalink_structure' ) ) {
-			return home_url( '/' . NC_Rewrite::slug() . '/' . $id );
+			$url = home_url( '/' . NC_Rewrite::slug() . '/' . $id );
+			if ( '' !== $slug ) {
+				$url .= '/' . $slug;
+			}
+			return $url;
 		}
 		return add_query_arg( NC_Rewrite::QUERY_VAR, $id, home_url( '/' ) );
 	}

@@ -120,6 +120,25 @@ class NC_Template_Helpers {
 	}
 
 	/**
+	 * Decorative title-slug for rich permalinks. Empty for media-only posts so
+	 * they keep the bare /{slug}/{id} URL. Port of alerta-boe noticia.ts newsSlug.
+	 *
+	 * @param array<string, mixed> $item
+	 */
+	public static function item_slug( array $item ): string {
+		$article = is_array( $item['article'] ?? null ) ? $item['article'] : null;
+		$base    = is_array( $article ) ? (string) ( $article['title'] ?? '' ) : '';
+		if ( '' === $base ) {
+			$base = wp_strip_all_tags( (string) ( $item['text'] ?? '' ) );
+		}
+		$slug = sanitize_title( $base );
+		if ( '' === $slug ) {
+			return '';
+		}
+		return rtrim( substr( $slug, 0, 60 ), '-' );
+	}
+
+	/**
 	 * Playable audios: those with a Catbox or original URL, mirroring the
 	 * NewsCard.tsx filter. Each entry has a ready-to-use 'src'.
 	 *

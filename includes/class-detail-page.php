@@ -19,6 +19,21 @@ class NC_Detail_Page {
 		add_filter( 'document_title_parts', [ $this, 'maybe_set_title' ] );
 		add_filter( 'pre_get_document_title', [ $this, 'maybe_force_title' ] );
 		add_action( 'template_redirect', [ $this, 'handle_404_for_missing' ] );
+		add_action( 'wp_head', [ $this, 'maybe_canonical' ] );
+	}
+
+	/** Canonical to the slug URL so id-only and id/slug variants don't split SEO. */
+	public function maybe_canonical(): void {
+		$id = $this->current_item_id();
+		if ( $id <= 0 ) {
+			return;
+		}
+		$item = $this->items->get_by_id( $id );
+		if ( null === $item || 1 !== (int) $item['enabled'] ) {
+			return;
+		}
+		$url = NC_Plugin::item_permalink( $id, NC_Template_Helpers::item_slug( $item ) );
+		echo '<link rel="canonical" href="' . esc_url( $url ) . '" />' . "\n";
 	}
 
 	public function maybe_override_template( string $template ): string {
@@ -47,6 +62,8 @@ class NC_Detail_Page {
 				$wp_query->is_404      = false;
 				$wp_query->is_singular = true;
 			}
+			// is_singular makes core rel_canonical target the wrong object; we emit our own.
+			remove_action( 'wp_head', 'rel_canonical' );
 			return;
 		}
 		// Not found: leave the 404 path alone.
