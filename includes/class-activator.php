@@ -44,6 +44,7 @@ class NC_Activator {
 			text            LONGTEXT,
 			images          LONGTEXT,
 			videos          LONGTEXT,
+			audios          LONGTEXT,
 			youtube_ids     TEXT,
 			article         LONGTEXT,
 			enabled         TINYINT(1)      NOT NULL DEFAULT 1,

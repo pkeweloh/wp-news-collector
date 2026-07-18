@@ -24,6 +24,7 @@ $article    = is_array( $item['article'] ?? null ) ? $item['article'] : null;
 $permalink  = NC_Plugin::item_permalink( (int) $item['id'] );
 $media_list = $show_images || $show_videos ? NC_Template_Helpers::build_media_list( $item ) : [];
 $too_big    = $show_videos ? NC_Template_Helpers::extract_too_big_videos( $item ) : [];
+$audios     = $show_videos ? NC_Template_Helpers::build_audio_list( $item ) : [];
 $yt_cta     = NC_Template_Helpers::youtube_cta_url( $item );
 $media_json = wp_json_encode( $media_list );
 $count      = count( $media_list );
@@ -110,6 +111,14 @@ $date_label = NC_Template_Helpers::format_date_es( (string) $item['published_at'
 			</div>
 		</a>
 	<?php endforeach; ?>
+
+	<?php if ( ! empty( $audios ) ) : ?>
+		<div class="nc-item-audios">
+			<?php foreach ( $audios as $audio ) : ?>
+				<audio class="nc-item-audio" controls preload="none" src="<?php echo esc_url( (string) $audio['src'] ); ?>"></audio>
+			<?php endforeach; ?>
+		</div>
+	<?php endif; ?>
 
 	<div class="nc-item-body">
 		<?php if ( ! empty( $item['text'] ) ) : ?>

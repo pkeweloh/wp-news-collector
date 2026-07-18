@@ -254,6 +254,13 @@ class NC_Catbox_Syncer {
 				$pieces[] = [ 'video', (string) $v['original_url'] ];
 			}
 		}
+		foreach ( (array) ( $item['audios'] ?? [] ) as $a ) {
+			$a = (array) $a;
+			if ( '' !== (string) ( $a['original_url'] ?? '' )
+				&& ! $this->is_catbox( (string) ( $a['catbox_url'] ?? '' ) ) ) {
+				$pieces[] = [ 'audio', (string) $a['original_url'] ];
+			}
+		}
 		$article = is_array( $item['article'] ?? null ) ? $item['article'] : null;
 		if ( is_array( $article ) && $this->is_original( (string) ( $article['image_url'] ?? '' ) ) ) {
 			$pieces[] = [ 'article_image', (string) $article['image_url'] ];
@@ -378,6 +385,13 @@ class NC_Catbox_Syncer {
 			}
 			if ( $this->is_catbox( (string) ( $v['catbox_url'] ?? '' ) ) ) {
 				$results[] = [ (string) $v['catbox_url'], 'video' ];
+			}
+		}
+
+		foreach ( (array) ( $item['audios'] ?? [] ) as $a ) {
+			$a = (array) $a;
+			if ( $this->is_catbox( (string) ( $a['catbox_url'] ?? '' ) ) ) {
+				$results[] = [ (string) $a['catbox_url'], 'audio' ];
 			}
 		}
 

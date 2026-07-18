@@ -285,6 +285,33 @@ class NC_Admin {
 			}
 		}
 
+		// Parse audios.
+		$valid_audio_statuses = [ 'pending', 'ok', 'upload_failed' ];
+		$audios               = [];
+		if ( isset( $_POST['audios'] ) && is_array( $_POST['audios'] ) ) {
+			foreach ( $_POST['audios'] as $raw_audio ) {
+				if ( ! is_array( $raw_audio ) ) {
+					continue;
+				}
+				$catbox_url   = esc_url_raw( wp_unslash( (string) ( $raw_audio['catbox_url'] ?? '' ) ) );
+				$original_url = esc_url_raw( wp_unslash( (string) ( $raw_audio['original_url'] ?? '' ) ) );
+				$status       = sanitize_key( (string) ( $raw_audio['status'] ?? 'pending' ) );
+				if ( ! in_array( $status, $valid_audio_statuses, true ) ) {
+					$status = 'pending';
+				}
+				$audio = [ 'status' => $status ];
+				if ( '' !== $original_url ) {
+					$audio['original_url'] = $original_url;
+				}
+				if ( '' !== $catbox_url ) {
+					$audio['catbox_url'] = $catbox_url;
+				}
+				if ( ! empty( $audio['catbox_url'] ) || ! empty( $audio['original_url'] ) ) {
+					$audios[] = $audio;
+				}
+			}
+		}
+
 		$item = $this->items->get_by_id( $id );
 		if ( $item ) {
 			$article = is_array( $item['article'] ?? null ) ? $item['article'] : null;
@@ -308,7 +335,7 @@ class NC_Admin {
 					$article = null;
 				}
 			}
-			$this->items->update_media( $id, $images, $videos, $article );
+			$this->items->update_media( $id, $images, $videos, $article, $audios );
 
 			// The main text is a locked field: the form always posts it, so save
 			// the (possibly edited) value with the same tags the view renders.

@@ -120,6 +120,28 @@ class NC_Template_Helpers {
 	}
 
 	/**
+	 * Playable audios: those with a Catbox or original URL, mirroring the
+	 * NewsCard.tsx filter. Each entry has a ready-to-use 'src'.
+	 *
+	 * @param array<string, mixed> $item
+	 * @return array<int, array{src:string}>
+	 */
+	public static function build_audio_list( array $item ): array {
+		$out = [];
+		foreach ( (array) ( $item['audios'] ?? [] ) as $a ) {
+			$a   = (array) $a;
+			$src = (string) ( $a['catbox_url'] ?? '' );
+			if ( '' === $src ) {
+				$src = (string) ( $a['original_url'] ?? '' );
+			}
+			if ( '' !== $src ) {
+				$out[] = [ 'src' => $src ];
+			}
+		}
+		return $out;
+	}
+
+	/**
 	 * If the item has no media nor article but has YouTube IDs, expose the
 	 * first one as a CTA URL ("Ver en YouTube").
 	 *

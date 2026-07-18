@@ -242,6 +242,22 @@ class NC_News_Processor {
 			}
 			$item['videos'] = $updated_videos;
 
+			$updated_audios = [];
+			foreach ( (array) ( $item['audios'] ?? [] ) as $audio ) {
+				$audio = (array) $audio;
+				if ( '' !== ( $audio['original_url'] ?? '' ) ) {
+					$catbox_url = $this->try_upload( (string) $audio['original_url'], $stats, $source, $source_name, $guid, 'audio' );
+					if ( '' !== $catbox_url ) {
+						$audio['catbox_url'] = $catbox_url;
+						$audio['status']     = 'ok';
+					} else {
+						$audio['status'] = 'upload_failed';
+					}
+				}
+				$updated_audios[] = $audio;
+			}
+			$item['audios'] = $updated_audios;
+
 			if ( is_array( $item['article'] ) && '' !== ( $item['article']['image_url'] ?? '' ) ) {
 				$catbox_url = $this->try_upload( (string) $item['article']['image_url'], $stats, $source, $source_name, $guid, 'article_image' );
 				if ( '' !== $catbox_url ) {
@@ -280,6 +296,12 @@ class NC_News_Processor {
 				if ( self::is_catbox_url( (string) ( $v[ $key ] ?? '' ) ) ) {
 					$catbox_urls[] = (string) $v[ $key ];
 				}
+			}
+		}
+		foreach ( (array) ( $item['audios'] ?? [] ) as $a ) {
+			$a = (array) $a;
+			if ( self::is_catbox_url( (string) ( $a['catbox_url'] ?? '' ) ) ) {
+				$catbox_urls[] = (string) $a['catbox_url'];
 			}
 		}
 		$article = is_array( $item['article'] ?? null ) ? $item['article'] : null;
@@ -349,6 +371,7 @@ class NC_News_Processor {
 
 			$images_in  = (array) ( $item['images'] ?? [] );
 			$videos_in  = (array) ( $item['videos'] ?? [] );
+			$audios_in  = (array) ( $item['audios'] ?? [] );
 			$article_in = is_array( $item['article'] ?? null ) ? $item['article'] : null;
 
 			$dirty           = false;
@@ -407,6 +430,28 @@ class NC_News_Processor {
 				$updated_videos[] = $video;
 			}
 
+			$updated_audios = [];
+			foreach ( $audios_in as $audio ) {
+				$audio    = (array) $audio;
+				$original = (string) ( $audio['original_url'] ?? '' );
+				$catbox_existing = (string) ( $audio['catbox_url'] ?? '' );
+				if ( '' !== $original && '' === $catbox_existing ) {
+					$new = $this->try_upload( $original, $stats, $source, $source_name, $guid, 'audio' );
+					if ( '' !== $new ) {
+						$audio['catbox_url'] = $new;
+						$audio['status']     = 'ok';
+						$stats['uploaded']++;
+						$dirty = true;
+					} else {
+						$audio['status'] = 'upload_failed';
+						$dirty           = true;
+					}
+				} elseif ( '' !== $original ) {
+					$stats['skipped']++;
+				}
+				$updated_audios[] = $audio;
+			}
+
 			if ( is_array( $article_in ) ) {
 				$art_img = (string) ( $article_in['image_url'] ?? '' );
 				if ( '' !== $art_img && ! self::is_catbox_url( $art_img ) ) {
@@ -422,7 +467,7 @@ class NC_News_Processor {
 			}
 
 			if ( $dirty ) {
-				$this->items->update_media( $id, $uploaded_images, $updated_videos, $article_in );
+				$this->items->update_media( $id, $uploaded_images, $updated_videos, $article_in, $updated_audios );
 				$stats['updated']++;
 			}
 		}

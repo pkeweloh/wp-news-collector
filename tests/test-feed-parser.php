@@ -79,6 +79,22 @@ assert_eq( 'item4.text strips Forwarded', $forwarded_stripped, true, $failures )
 // Source slug
 assert_eq( 'source_from_url', NC_Feed_Parser::source_from_url( 'http://host:1200/telegram/channel/espana_eterna' ), 'espana_eterna', $failures );
 
+// Inline: <audio> extraction (not in the shared fixture).
+$audio_xml = '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><item>'
+	. '<guid>https://t.me/test/2001</guid>'
+	. '<description><![CDATA[<p>Con audio</p><audio src="https://t.me/test/2001/voice.ogg"></audio>]]></description>'
+	. '</item></channel></rss>';
+$audio_items = NC_Feed_Parser::parse_feed( $audio_xml, 'test' );
+assert_eq( 'audio.item count', count( $audio_items ), 1, $failures );
+if ( ! empty( $audio_items ) ) {
+	$au = $audio_items[0];
+	assert_eq( 'audio.count', count( $au['audios'] ), 1, $failures );
+	if ( ! empty( $au['audios'] ) ) {
+		assert_eq( 'audio.original_url', $au['audios'][0]['original_url'], 'https://t.me/test/2001/voice.ogg', $failures );
+		assert_eq( 'audio.status', $au['audios'][0]['status'], 'pending', $failures );
+	}
+}
+
 echo "\n";
 if ( empty( $failures ) ) {
 	echo "ALL PASS\n";

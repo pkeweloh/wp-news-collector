@@ -64,6 +64,7 @@ class NC_Item_Repository {
 			'text'            => (string) ( $item['text'] ?? '' ),
 			'images'          => wp_json_encode( $item['images'] ?? [] ),
 			'videos'          => wp_json_encode( $item['videos'] ?? [] ),
+			'audios'          => wp_json_encode( $item['audios'] ?? [] ),
 			'youtube_ids'     => wp_json_encode( $item['youtube_ids'] ?? [] ),
 			'article'         => $article ? wp_json_encode( $article ) : null,
 			'enabled'         => 1,
@@ -73,8 +74,8 @@ class NC_Item_Repository {
 
 		// $wpdb->insert doesn't support INSERT IGNORE; use a prepared query.
 		$sql = "INSERT IGNORE INTO {$this->table}
-			(guid, telegram_id, source, source_name, raw_description, text, images, videos, youtube_ids, article, enabled, published_at, fetched_at)
-			VALUES (%s, %d, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s, %s)";
+			(guid, telegram_id, source, source_name, raw_description, text, images, videos, audios, youtube_ids, article, enabled, published_at, fetched_at)
+			VALUES (%s, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s, %s)";
 
 		$result = $wpdb->query(
 			$wpdb->prepare(
@@ -87,6 +88,7 @@ class NC_Item_Repository {
 				$data['text'],
 				$data['images'],
 				$data['videos'],
+				$data['audios'],
 				$data['youtube_ids'],
 				null === $data['article'] ? '' : $data['article'],
 				$data['enabled'],
@@ -134,6 +136,7 @@ class NC_Item_Repository {
 		}
 		$images  = array_map( 'strval', (array) ( $item['images'] ?? [] ) );
 		$videos  = (array) ( $item['videos'] ?? [] );
+		$audios  = (array) ( $item['audios'] ?? [] );
 		$article = is_array( $item['article'] ?? null ) ? $item['article'] : null;
 
 		if ( 'image' === $upload_type ) {
@@ -152,11 +155,20 @@ class NC_Item_Repository {
 				}
 			}
 			unset( $v );
+		} elseif ( 'audio' === $upload_type ) {
+			foreach ( $audios as &$a ) {
+				$a = (array) $a;
+				if ( ( $a['original_url'] ?? '' ) === $original_url ) {
+					$a['catbox_url'] = $new_url;
+					$a['status']     = 'ok';
+				}
+			}
+			unset( $a );
 		} elseif ( 'article_image' === $upload_type && is_array( $article ) && ( $article['image_url'] ?? '' ) === $original_url ) {
 			$article['image_url'] = $new_url;
 		}
 
-		$this->update_media( (int) $item['id'], array_values( $images ), array_values( $videos ), $article );
+		$this->update_media( (int) $item['id'], array_values( $images ), array_values( $videos ), $article, array_values( $audios ) );
 		return isset( $item['published_at'] ) ? (string) $item['published_at'] : null;
 	}
 
@@ -223,24 +235,32 @@ class NC_Item_Repository {
 	}
 
 	/**
-	 * Update the media-related fields on an existing row.
+	 * Update the media-related fields on an existing row. Pass $audios only when
+	 * touching audio; leaving it null keeps the audios column intact so callers
+	 * that never handle audio don't clobber it.
 	 *
-	 * @param string[]                       $images
+	 * @param string[]                         $images
 	 * @param array<int, array<string, mixed>> $videos
-	 * @param array<string, mixed>|null      $article
+	 * @param array<string, mixed>|null        $article
+	 * @param array<int, array<string, mixed>>|null $audios
 	 */
-	public function update_media( int $id, array $images, array $videos, ?array $article ): bool {
+	public function update_media( int $id, array $images, array $videos, ?array $article, ?array $audios = null ): bool {
 		global $wpdb;
-		$data = [
+		$data    = [
 			'images'  => wp_json_encode( $images ),
 			'videos'  => wp_json_encode( $videos ),
 			'article' => null === $article ? null : wp_json_encode( $article ),
 		];
+		$formats = [ '%s', '%s', '%s' ];
+		if ( null !== $audios ) {
+			$data['audios'] = wp_json_encode( $audios );
+			$formats[]      = '%s';
+		}
 		$rows = $wpdb->update(
 			$this->table,
 			$data,
 			[ 'id' => $id ],
-			[ '%s', '%s', '%s' ],
+			$formats,
 			[ '%d' ]
 		);
 		return false !== $rows;
@@ -465,7 +485,7 @@ class NC_Item_Repository {
 	 * @return array<string, mixed>
 	 */
 	private function decode_row( array $row ): array {
-		foreach ( [ 'images', 'videos', 'youtube_ids' ] as $key ) {
+		foreach ( [ 'images', 'videos', 'audios', 'youtube_ids' ] as $key ) {
 			$raw = $row[ $key ] ?? '';
 			if ( is_string( $raw ) && '' !== $raw ) {
 				$decoded   = json_decode( $raw, true );

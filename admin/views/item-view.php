@@ -24,9 +24,11 @@ $msg  = isset( $_GET['nc_msg'] ) ? sanitize_key( (string) $_GET['nc_msg'] ) : ''
 
 $videos  = (array) ( $item['videos'] ?? [] );
 $images  = (array) ( $item['images'] ?? [] );
+$audios  = (array) ( $item['audios'] ?? [] );
 $article = is_array( $item['article'] ?? null ) ? $item['article'] : null;
 
-$valid_statuses = [ 'pending', 'ok', 'upload_failed', 'too_big' ];
+$valid_statuses       = [ 'pending', 'ok', 'upload_failed', 'too_big' ];
+$valid_audio_statuses = [ 'pending', 'ok', 'upload_failed' ];
 
 $settings       = (array) get_option( 'nc_settings', [] );
 $catbox_enabled = ! empty( $settings['catbox_enabled'] );
@@ -50,6 +52,13 @@ foreach ( $videos as $video ) {
 	if ( ( $video['status'] ?? '' ) !== 'too_big'
 		&& '' !== (string) ( $video['original_url'] ?? '' )
 		&& 0 !== strpos( (string) ( $video['catbox_url'] ?? '' ), 'https://files.catbox.moe/' ) ) {
+		$has_pending = true;
+	}
+}
+foreach ( $audios as $audio ) {
+	$audio = (array) $audio;
+	if ( '' !== (string) ( $audio['original_url'] ?? '' )
+		&& 0 !== strpos( (string) ( $audio['catbox_url'] ?? '' ), 'https://files.catbox.moe/' ) ) {
 		$has_pending = true;
 	}
 }
@@ -203,6 +212,58 @@ $item_msg_map = [
 		</button>
 	</p>
 
+	<!-- Audios -->
+	<h2 style="margin-top:1.5rem"><?php esc_html_e( 'Audios', 'wp-news-collector' ); ?></h2>
+	<div id="nc-audios-wrap">
+		<?php foreach ( $audios as $idx => $audio ) : $audio = (array) $audio; ?>
+		<div class="nc-audio-block" style="margin-bottom:1rem;padding:12px;background:#fff;border:1px solid #ccd0d4;max-width:700px">
+			<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+				<strong><?php printf( esc_html__( 'Audio %d', 'wp-news-collector' ), (int) $idx + 1 ); ?></strong>
+				<button type="button" class="button nc-remove-row" title="<?php esc_attr_e( 'Remove audio', 'wp-news-collector' ); ?>">✕ <?php esc_html_e( 'Remove', 'wp-news-collector' ); ?></button>
+			</div>
+
+			<?php if ( ! empty( $audio['original_url'] ) ) : ?>
+			<p style="margin:0 0 8px;font-size:.85em;color:#666">
+				<?php esc_html_e( 'Original URL:', 'wp-news-collector' ); ?>
+				<a href="<?php echo esc_url( (string) $audio['original_url'] ); ?>" target="_blank" rel="noreferrer noopener" style="font-family:monospace">
+					<?php echo esc_html( (string) $audio['original_url'] ); ?>
+				</a>
+			</p>
+			<input type="hidden" name="audios[<?php echo (int) $idx; ?>][original_url]" value="<?php echo esc_attr( (string) $audio['original_url'] ); ?>" />
+			<?php endif; ?>
+
+			<table class="form-table" style="margin:0">
+				<tr>
+					<th style="width:120px;padding:4px 0"><?php esc_html_e( 'Catbox URL', 'wp-news-collector' ); ?></th>
+					<td style="padding:4px 0">
+						<input type="text" name="audios[<?php echo (int) $idx; ?>][catbox_url]"
+							value="<?php echo esc_attr( (string) ( $audio['catbox_url'] ?? '' ) ); ?>"
+							placeholder="https://files.catbox.moe/…"
+							style="width:100%;font-family:monospace;font-size:.85em" />
+					</td>
+				</tr>
+				<tr>
+					<th style="padding:4px 0"><?php esc_html_e( 'Status', 'wp-news-collector' ); ?></th>
+					<td style="padding:4px 0">
+						<select name="audios[<?php echo (int) $idx; ?>][status]">
+							<?php foreach ( $valid_audio_statuses as $s ) : ?>
+								<option value="<?php echo esc_attr( $s ); ?>" <?php selected( (string) ( $audio['status'] ?? 'pending' ), $s ); ?>>
+									<?php echo esc_html( $s ); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<?php endforeach; ?>
+	</div>
+	<p>
+		<button type="button" id="nc-add-audio" class="button">
+			+ <?php esc_html_e( 'Add audio', 'wp-news-collector' ); ?>
+		</button>
+	</p>
+
 	<!-- Article -->
 	<?php if ( $article ) : ?>
 	<h2 style="margin-top:1.5rem"><?php esc_html_e( 'Article', 'wp-news-collector' ); ?></h2>
@@ -265,8 +326,11 @@ $item_msg_map = [
 (function () {
 	var imgWrap   = document.getElementById('nc-images-wrap');
 	var vidWrap   = document.getElementById('nc-videos-wrap');
+	var audWrap   = document.getElementById('nc-audios-wrap');
 	var vidCount  = <?php echo count( $videos ); ?>;
+	var audCount  = <?php echo count( $audios ); ?>;
 	var statuses  = <?php echo wp_json_encode( $valid_statuses ); ?>;
+	var audioStatuses = <?php echo wp_json_encode( $valid_audio_statuses ); ?>;
 
 	// Text lock: read-only until Edit; re-locking discards the change.
 	var textBtn      = document.getElementById('nc-text-lock');
@@ -296,7 +360,7 @@ $item_msg_map = [
 	document.addEventListener('click', function (e) {
 		var btn = e.target.closest('.nc-remove-row');
 		if (!btn) return;
-		var row = btn.closest('.nc-media-row, .nc-video-block');
+		var row = btn.closest('.nc-media-row, .nc-video-block, .nc-audio-block');
 		if (row) row.parentNode.removeChild(row);
 	});
 
@@ -339,6 +403,31 @@ $item_msg_map = [
 			'      <td style="padding:4px 0"><select name="videos[' + idx + '][status]">' + opts + '</select></td></tr>' +
 			'</table>';
 		vidWrap.appendChild(block);
+		block.querySelector('input').focus();
+	});
+
+	// Add audio block
+	document.getElementById('nc-add-audio').addEventListener('click', function () {
+		var idx = audCount++;
+		var opts = audioStatuses.map(function (s) {
+			return '<option value="' + s + '"' + (s === 'ok' ? ' selected' : '') + '>' + s + '</option>';
+		}).join('');
+		var block = document.createElement('div');
+		block.className = 'nc-audio-block';
+		block.style.cssText = 'margin-bottom:1rem;padding:12px;background:#fff;border:1px solid #ccd0d4;max-width:700px';
+		block.innerHTML =
+			'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+			'  <strong>Audio nuevo</strong>' +
+			'  <button type="button" class="button nc-remove-row" title="Quitar audio">✕ Quitar</button>' +
+			'</div>' +
+			'<table class="form-table" style="margin:0">' +
+			'  <tr><th style="width:120px;padding:4px 0">Catbox URL</th>' +
+			'      <td style="padding:4px 0"><input type="text" name="audios[' + idx + '][catbox_url]"' +
+			'        placeholder="https://files.catbox.moe/…" style="width:100%;font-family:monospace;font-size:.85em" /></td></tr>' +
+			'  <tr><th style="padding:4px 0">Estado</th>' +
+			'      <td style="padding:4px 0"><select name="audios[' + idx + '][status]">' + opts + '</select></td></tr>' +
+			'</table>';
+		audWrap.appendChild(block);
 		block.querySelector('input').focus();
 	});
 })();

@@ -685,3 +685,17 @@ button.nc-media-cell:hover .nc-media-cell__thumb { transform: scale(1.03); }
 	justify-content: center;
 	pointer-events: none;
 }
+
+/* -------------------------------------------------------------------------
+ * Audio players
+ * ------------------------------------------------------------------------- */
+.nc-item-audios {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+.nc-item-audio {
+	display: block;
+	width: 100%;
+}

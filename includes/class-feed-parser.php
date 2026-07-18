@@ -77,6 +77,7 @@ class NC_Feed_Parser {
 
 		$images      = [];
 		$videos      = [];
+		$audios      = [];
 		$youtube_ids = [];
 		$article     = null;
 
@@ -124,7 +125,23 @@ class NC_Feed_Parser {
 				$video_el->parentNode->removeChild( $video_el );
 			}
 
-			// 3) Remaining <img> elements → images
+			// 3) Remaining <audio> elements
+			foreach ( self::nodes_to_array( $body->getElementsByTagName( 'audio' ) ) as $audio_el ) {
+				if ( ! $audio_el instanceof DOMElement || ! $audio_el->parentNode ) {
+					continue;
+				}
+				$src = trim( (string) $audio_el->getAttribute( 'src' ) );
+				if ( '' !== $src ) {
+					$audios[] = [
+						'original_url' => $src,
+						'catbox_url'   => '',
+						'status'       => 'pending',
+					];
+				}
+				$audio_el->parentNode->removeChild( $audio_el );
+			}
+
+			// 4) Remaining <img> elements → images
 			foreach ( self::nodes_to_array( $body->getElementsByTagName( 'img' ) ) as $img ) {
 				if ( ! $img instanceof DOMElement || ! $img->parentNode ) {
 					continue;
@@ -136,7 +153,7 @@ class NC_Feed_Parser {
 				$img->parentNode->removeChild( $img );
 			}
 
-			// 4) Collect YouTube IDs from <a href>
+			// 5) Collect YouTube IDs from <a href>
 			foreach ( self::nodes_to_array( $body->getElementsByTagName( 'a' ) ) as $a_el ) {
 				if ( ! $a_el instanceof DOMElement ) {
 					continue;
@@ -151,7 +168,7 @@ class NC_Feed_Parser {
 				}
 			}
 
-			// 5) Serialize remaining body to safe HTML
+			// 6) Serialize remaining body to safe HTML
 			$text = trim( self::serialize_safe_html( $body ) );
 		} else {
 			$text = '';
@@ -166,6 +183,7 @@ class NC_Feed_Parser {
 			'text'            => $text,
 			'images'          => $images,
 			'videos'          => $videos,
+			'audios'          => $audios,
 			'youtube_ids'     => $youtube_ids,
 			'article'         => $article,
 			'published_at'    => $published_at,

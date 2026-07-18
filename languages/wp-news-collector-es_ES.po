@@ -33,6 +33,9 @@ msgstr "Acciones"
 msgid "Active"
 msgstr "Activa"
 
+msgid "Add audio"
+msgstr "Añadir audio"
+
 msgid "Add image"
 msgstr "Añadir imagen"
 
@@ -47,6 +50,12 @@ msgstr "Añadir vídeo"
 
 msgid "Album"
 msgstr "Álbum"
+
+msgid "Audio %d"
+msgstr "Audio %d"
+
+msgid "Audios"
+msgstr "Audios"
 
 msgid "Album ID"
 msgstr "ID del álbum"
@@ -296,6 +305,9 @@ msgstr "Resubir ítems existentes a Catbox"
 
 msgid "Remove"
 msgstr "Quitar"
+
+msgid "Remove audio"
+msgstr "Quitar audio"
 
 msgid "Remove video"
 msgstr "Quitar vídeo"
