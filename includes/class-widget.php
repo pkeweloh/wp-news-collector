@@ -3,7 +3,7 @@
  * Latest news sidebar widget.
  *
  * Renders the most recent N items from the news feed.
- * Each item links to its canonical /noticia/{id} page.
+ * Each item links to its canonical /{item_slug}/{id} page.
  *
  * @package wp-news-collector
  */

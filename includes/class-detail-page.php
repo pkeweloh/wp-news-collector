@@ -1,6 +1,6 @@
 <?php
 /**
- * Server-side handler for /noticia/{id} canonical URLs.
+ * Server-side handler for /{item_slug}/{id} canonical URLs.
  *
  * Renders a full page (with the theme's header/footer) when a visitor lands
  * directly on the item URL: shared link, refresh after pushState, or SEO crawl.

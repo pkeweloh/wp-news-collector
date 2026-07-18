@@ -118,6 +118,9 @@ class NC_Activator {
 		// since the `init` hook has not yet fired during activation.
 		$slug = NC_Rewrite::slug();
 		add_rewrite_rule( '^' . $slug . '/([0-9]+)(?:/[^/]+)?/?$', 'index.php?' . NC_Rewrite::QUERY_VAR . '=$matches[1]', 'top' );
+		if ( NC_Source_Page::base() !== $slug ) {
+			add_rewrite_rule( '^' . NC_Source_Page::base() . '/([^/]+)/?$', 'index.php?' . NC_Source_Page::QUERY_VAR . '=$matches[1]', 'top' );
+		}
 		flush_rewrite_rules( false );
 	}
 
@@ -167,6 +170,7 @@ class NC_Activator {
 		$wpdb->query( "DROP TABLE IF EXISTS {$sources}" );
 
 		delete_option( 'nc_settings' );
+		delete_option( 'nc_needs_rewrite_flush' );
 
 		if ( function_exists( 'as_unschedule_all_actions' ) ) {
 			as_unschedule_all_actions( 'nc_fetch_all_sources' );

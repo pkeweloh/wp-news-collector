@@ -342,6 +342,12 @@ msgstr "Fuente añadida."
 msgid "Source deleted."
 msgstr "Fuente eliminada."
 
+msgid "Source not found."
+msgstr "Fuente no encontrada."
+
+msgid "Source permalink slug"
+msgstr "Slug del enlace de fuente"
+
 msgid "Source toggled."
 msgstr "Fuente activada/desactivada."
 
@@ -362,6 +368,9 @@ msgstr "Sync encolado en Action Scheduler."
 
 msgid "Text"
 msgstr "Texto"
+
+msgid "The source permalink slug must differ from the item slug. Your change was not saved."
+msgstr "El slug de enlace de fuente debe ser distinto del slug de ítem. Tu cambio no se ha guardado."
 
 msgid "This section aggregates posts from third-party Telegram channels. Opinions expressed are the sole responsibility of their authors."
 msgstr "Esta sección agrega publicaciones de canales de Telegram de terceros. Las opiniones expresadas son responsabilidad exclusiva de sus autores."
@@ -389,6 +398,9 @@ msgstr "La URL no se puede editar. Elimínala y vuelve a añadirla para cambiarl
 
 msgid "URL is required."
 msgstr "La URL es obligatoria."
+
+msgid "URL prefix for per-source channel pages. Must differ from the item slug. Current: %s"
+msgstr "Prefijo de URL para las páginas por canal (fuente). Debe ser distinto del slug de ítem. Actual: %s"
 
 msgid "URL prefix for single item pages. Current: %s"
 msgstr "Prefijo de URL para las páginas de ítem individuales. Actual: %s"

@@ -12,6 +12,8 @@ defined( 'ABSPATH' ) || exit;
 <div class="wrap nc-wrap">
 	<h1><?php esc_html_e( 'News Collector: Settings', 'wp-news-collector' ); ?></h1>
 
+	<?php settings_errors( 'nc_settings' ); ?>
+
 	<?php if ( 'queued' === $msg ) : ?>
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Fetch job queued.', 'wp-news-collector' ); ?></p></div>
 	<?php elseif ( 'ran' === $msg ) : ?>
@@ -81,13 +83,29 @@ defined( 'ABSPATH' ) || exit;
 				<th scope="row"><label for="nc_item_slug"><?php esc_html_e( 'Item permalink slug', 'wp-news-collector' ); ?></label></th>
 				<td>
 					<input type="text" class="regular-text" id="nc_item_slug" name="nc_settings[item_slug]"
-						value="<?php echo esc_attr( (string) ( $settings['item_slug'] ?? 'noticia' ) ); ?>" />
+						value="<?php echo esc_attr( (string) ( $settings['item_slug'] ?? 'item' ) ); ?>" />
 					<p class="description">
 						<?php
 						printf(
 							/* translators: %s: current permalink example */
 							esc_html__( 'URL prefix for single item pages. Current: %s', 'wp-news-collector' ),
-							'<code>' . esc_html( home_url( '/' . ( $settings['item_slug'] ?? 'noticia' ) . '/123' ) ) . '</code>'
+							'<code>' . esc_html( home_url( '/' . ( $settings['item_slug'] ?? 'item' ) . '/123' ) ) . '</code>'
+						);
+						?>
+					</p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="nc_source_slug"><?php esc_html_e( 'Source permalink slug', 'wp-news-collector' ); ?></label></th>
+				<td>
+					<input type="text" class="regular-text" id="nc_source_slug" name="nc_settings[source_slug]"
+						value="<?php echo esc_attr( (string) ( $settings['source_slug'] ?? 'source' ) ); ?>" />
+					<p class="description">
+						<?php
+						printf(
+							/* translators: %s: current source page URL example */
+							esc_html__( 'URL prefix for per-source channel pages. Must differ from the item slug. Current: %s', 'wp-news-collector' ),
+							'<code>' . esc_html( home_url( '/' . ( $settings['source_slug'] ?? 'source' ) . '/channel' ) ) . '</code>'
 						);
 						?>
 					</p>

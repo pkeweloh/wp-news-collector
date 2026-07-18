@@ -1,11 +1,11 @@
 /**
- * Public-feed interactions for [news_feed] and /noticia/{id}.
+ * Public-feed interactions for [news_feed] and /{item_slug}/{id}.
  *
  * Two independent overlays:
  *  - MediaLightbox: click on a `.nc-media-cell` opens the media (image/video)
  *    in a fullscreen lightbox with keyboard + swipe navigation.
  *  - ItemModal: click on a `.nc-item` opens the full item content as a modal,
- *    pushes the canonical /noticia/{id} URL to history, and restores the
+ *    pushes the canonical /{item_slug}/{id} URL to history, and restores the
  *    previous URL on close. Mirrors the Instagram/Twitter pattern.
  *
  * Hydration data is provided by `window.NC_DATA` (see class-shortcode.php).

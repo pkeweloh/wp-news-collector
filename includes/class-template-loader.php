@@ -12,7 +12,8 @@
  *   feed.php         : the feed container (loop + sentinel + disclaimer)
  *   item.php         : single item card rendered inside the feed
  *   item-detail.php  : full item content (modal + REST endpoint + standalone page)
- *   single-item.php  : full-page wrapper for /noticia/{id} (header/footer + item-detail)
+ *   single-item.php  : full-page wrapper for /{item_slug}/{id} (header/footer + item-detail)
+ *   source-feed.php  : full-page wrapper for /{source_slug}/{source} (header/footer + news_feed)
  *
  * Child themes are checked before parent themes; plugin defaults are the final fallback.
  *

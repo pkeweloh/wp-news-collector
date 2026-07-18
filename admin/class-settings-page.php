@@ -29,7 +29,8 @@ class NC_Settings_Page {
 		$defaults = NC_Plugin::default_settings();
 		$input    = is_array( $input ) ? $input : [];
 
-		$prev_slug = (string) ( NC_Plugin::get_settings()['item_slug'] ?? 'noticia' );
+		$prev_slug   = (string) ( NC_Plugin::get_settings()['item_slug'] ?? 'item' );
+		$prev_source = (string) ( NC_Plugin::get_settings()['source_slug'] ?? 'source' );
 
 		$out = [
 			'catbox_enabled'         => ! empty( $input['catbox_enabled'] ),
@@ -41,8 +42,11 @@ class NC_Settings_Page {
 				? max( 1, (int) $input['max_items_per_source'] )
 				: $defaults['max_items_per_source'],
 			'item_slug'              => isset( $input['item_slug'] )
-				? sanitize_title( (string) $input['item_slug'] ) ?: 'noticia'
+				? sanitize_title( (string) $input['item_slug'] ) ?: 'item'
 				: $defaults['item_slug'],
+			'source_slug'            => isset( $input['source_slug'] )
+				? sanitize_title( (string) $input['source_slug'] ) ?: 'source'
+				: $defaults['source_slug'],
 			'catbox_retry_enabled'           => ! empty( $input['catbox_retry_enabled'] ),
 			'catbox_retry_interval'          => isset( $input['catbox_retry_interval'] )
 				? max( 300, (int) $input['catbox_retry_interval'] )
@@ -57,6 +61,22 @@ class NC_Settings_Page {
 				? max( 1, (int) $input['catbox_retry_breaker_threshold'] )
 				: $defaults['catbox_retry_breaker_threshold'],
 		];
+
+		// Equal item/source bases would collide in the URL namespace. Revert to
+		// the last saved (valid) pair; revert the item too if the source alone
+		// still collides, i.e. the item slug is what changed.
+		if ( $out['source_slug'] === $out['item_slug'] ) {
+			$out['source_slug'] = $prev_source;
+			if ( $out['source_slug'] === $out['item_slug'] ) {
+				$out['item_slug'] = $prev_slug;
+			}
+			add_settings_error(
+				'nc_settings',
+				'nc_slug_collision',
+				__( 'The source permalink slug must differ from the item slug. Your change was not saved.', 'wp-news-collector' ),
+				'error'
+			);
+		}
 
 		// Reschedule recurring action with new interval.
 		if ( function_exists( 'as_unschedule_all_actions' ) && function_exists( 'as_schedule_recurring_action' ) ) {
@@ -81,9 +101,11 @@ class NC_Settings_Page {
 			}
 		}
 
-		// Flush rewrite rules if the item slug changed.
-		if ( $out['item_slug'] !== $prev_slug ) {
-			flush_rewrite_rules( false );
+		// Defer the flush: this request already registered rules on `init` with
+		// the old slugs, so flushing now would persist stale ones. Picked up by
+		// NC_Plugin::maybe_flush_rewrite() on the next request.
+		if ( $out['item_slug'] !== $prev_slug || $out['source_slug'] !== $prev_source ) {
+			update_option( 'nc_needs_rewrite_flush', '1' );
 		}
 
 		return $out;

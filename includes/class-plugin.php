@@ -18,6 +18,7 @@ class NC_Plugin {
 	private NC_Rewrite $rewrite;
 	private NC_Rest $rest;
 	private NC_Detail_Page $detail;
+	private NC_Source_Page $source_page;
 	private ?NC_Admin $admin = null;
 	private ?NC_Shortcode $shortcode = null;
 
@@ -33,6 +34,7 @@ class NC_Plugin {
 		$this->rewrite   = new NC_Rewrite();
 		$this->rest      = new NC_Rest( $this->items );
 		$this->detail    = new NC_Detail_Page( $this->items );
+		$this->source_page = new NC_Source_Page();
 
 		if ( is_admin() ) {
 			require_once NC_PLUGIN_DIR . 'admin/class-admin.php';
@@ -82,16 +84,18 @@ class NC_Plugin {
 		add_action( 'nc_detect_covers', [ $this->processor, 'detect_cover_candidates' ] );
 		add_action( 'nc_clean_covers', [ $this->processor, 'clean_confirmed_covers' ] );
 		add_action( 'init', [ $this, 'maybe_schedule_recurring' ] );
+		add_action( 'init', [ $this, 'maybe_flush_rewrite' ], 20 );
 
 		$this->rewrite->register();
 		$this->rest->register();
 		$this->detail->register();
+		$this->source_page->register();
 	}
 
 	/**
-	 * Public permalink for a single item. Pretty permalinks → /noticia/{id} (plus
-	 * an optional decorative /{slug}); plain → ?nc_item={id}. The slug is ignored
-	 * on read, so it is purely additive.
+	 * Public permalink for a single item. Pretty permalinks → /{item_slug}/{id}
+	 * (plus an optional decorative /{slug}); plain → ?nc_item={id}. The slug is
+	 * ignored on read, so it is purely additive.
 	 */
 	public static function item_permalink( int $id, string $slug = '' ): string {
 		if ( get_option( 'permalink_structure' ) ) {
@@ -102,6 +106,14 @@ class NC_Plugin {
 			return $url;
 		}
 		return add_query_arg( NC_Rewrite::QUERY_VAR, $id, home_url( '/' ) );
+	}
+
+	/** Public landing-page URL for a single source handle: /{source_slug}/{handle}. */
+	public static function source_permalink( string $handle ): string {
+		if ( get_option( 'permalink_structure' ) ) {
+			return home_url( '/' . NC_Source_Page::base() . '/' . $handle );
+		}
+		return add_query_arg( NC_Source_Page::QUERY_VAR, $handle, home_url( '/' ) );
 	}
 
 	/**
@@ -122,6 +134,14 @@ class NC_Plugin {
 	public function maybe_enqueue_widget_assets(): void {
 		if ( is_active_widget( false, false, 'nc_news_widget', true ) ) {
 			wp_enqueue_style( 'nc-public', NC_PLUGIN_URL . 'assets/css/public.css', [], NC_VERSION );
+		}
+	}
+
+	/** Runs at init priority 20, after the rewrite rules re-register with any new slugs. */
+	public function maybe_flush_rewrite(): void {
+		if ( get_option( 'nc_needs_rewrite_flush' ) ) {
+			delete_option( 'nc_needs_rewrite_flush' );
+			flush_rewrite_rules( false );
 		}
 	}
 
@@ -165,7 +185,8 @@ class NC_Plugin {
 			'catbox_userhash'                => '',
 			'fetch_interval_minutes'         => 30,
 			'max_items_per_source'           => 50,
-			'item_slug'                      => 'noticia',
+			'item_slug'                      => 'item',
+			'source_slug'                    => 'source',
 			'catbox_retry_enabled'           => true,
 			'catbox_retry_interval'          => 3600,
 			'catbox_retry_batch_size'        => 10,

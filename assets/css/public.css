@@ -45,6 +45,8 @@
 }
 
 .nc-item-source { font-weight: 700; font-size: 0.85em; color: var(--nc-accent); }
+a.nc-item-source { text-decoration: none; }
+a.nc-item-source:hover { text-decoration: underline; }
 
 .nc-item-header-right { display: inline-flex; align-items: center; gap: 8px; }
 .nc-item-time { font-size: 0.8em; color: var(--nc-muted); }
@@ -416,11 +418,17 @@ button.nc-media-cell:hover .nc-media-cell__thumb { transform: scale(1.03); }
 }
 
 /* -------------------------------------------------------------------------
- * Standalone detail page (/noticia/{id})
+ * Standalone detail page (/{item_slug}/{id})
  * ------------------------------------------------------------------------- */
 .nc-detail-page__inner {
 	max-width: 700px;
 	margin: 24px auto;
+	padding: 0 16px;
+}
+
+.nc-source-page__title {
+	max-width: 700px;
+	margin: 24px auto 0;
 	padding: 0 16px;
 }
 

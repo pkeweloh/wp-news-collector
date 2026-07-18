@@ -1,7 +1,7 @@
 <?php
 /**
  * Rewrite rule for canonical item permalinks (/{slug}/{id}).
- * The slug is configurable via Settings (default: "noticia").
+ * The slug is configurable via Settings (default: "item").
  *
  * @package wp-news-collector
  */
@@ -14,7 +14,7 @@ class NC_Rewrite {
 
 	public static function slug(): string {
 		$slug = trim( (string) ( NC_Plugin::get_settings()['item_slug'] ?? '' ) );
-		return '' !== $slug ? sanitize_title( $slug ) : 'noticia';
+		return '' !== $slug ? sanitize_title( $slug ) : 'item';
 	}
 
 	public function register(): void {

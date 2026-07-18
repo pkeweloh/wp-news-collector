@@ -39,7 +39,12 @@ $single_featured_video = ( 1 === $count && 'video' === $media_list[0]['kind'] );
 <article class="nc-item nc-item--detail" data-source="<?php echo esc_attr( (string) $item['source'] ); ?>">
 
 	<header class="nc-item-header">
-		<span class="nc-item-source"><?php echo esc_html( (string) $item['source_name'] ); ?></span>
+		<?php $nc_source_handle = (string) ( $item['source'] ?? '' ); ?>
+		<?php if ( '' !== $nc_source_handle ) : ?>
+			<a class="nc-item-source" href="<?php echo esc_url( NC_Plugin::source_permalink( $nc_source_handle ) ); ?>"><?php echo esc_html( (string) $item['source_name'] ); ?></a>
+		<?php else : ?>
+			<span class="nc-item-source"><?php echo esc_html( (string) $item['source_name'] ); ?></span>
+		<?php endif; ?>
 		<div class="nc-item-header-right">
 			<time class="nc-item-time" datetime="<?php echo esc_attr( (string) $item['published_at'] ); ?>"><?php echo esc_html( $date_label ); ?></time>
 			<a class="nc-item-permalink" href="<?php echo esc_url( $permalink ); ?>" aria-label="<?php esc_attr_e( 'Permalink', 'wp-news-collector' ); ?>">

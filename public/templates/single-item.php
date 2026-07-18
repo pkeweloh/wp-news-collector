@@ -1,6 +1,6 @@
 <?php
 /**
- * Full-page template for /noticia/{id}. Uses the theme's header/footer.
+ * Full-page template for /{item_slug}/{id}. Uses the theme's header/footer.
  *
  * @package wp-news-collector
  */
