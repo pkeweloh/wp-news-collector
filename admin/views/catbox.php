@@ -109,6 +109,25 @@ $msg_map = [
 				(int) ( $retry_stats['remaining'] ?? 0 )
 			);
 			?>
+			<?php if ( (int) ( $retry_stats['gone'] ?? 0 ) > 0 ) : ?>
+				<span class="description">
+					&middot;
+					<?php
+					printf(
+						// translators: %d: pieces retired because their source is gone
+						esc_html(
+							_n(
+								'%d retired (source gone).',
+								'%d retired (sources gone).',
+								(int) $retry_stats['gone'],
+								'wp-news-collector'
+							)
+						),
+						(int) $retry_stats['gone']
+					);
+					?>
+				</span>
+			<?php endif; ?>
 			<?php if ( ! empty( $retry_stats['aborted'] ) ) : ?>
 				<span style="color:#b32d2e">&middot; <?php esc_html_e( 'circuit breaker tripped (Catbox likely down): paused until the next sweep.', 'wp-news-collector' ); ?></span>
 			<?php endif; ?>

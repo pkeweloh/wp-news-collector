@@ -5,11 +5,16 @@
  * @package wp-news-collector
  * @var int                        $total_uploads
  * @var int                        $failed
+ * @var int                        $gone
  * @var array<string, mixed>|null  $cleanup_stats
  * @var string                     $msg
  * @var array<string, mixed>       $uploads_data
  * @var string                     $uploads_filter
  * @var array<string, string>      $album_month_map
+ * @var array<int, bool>           $linked_map
+ * @var array<string, array{id:int, text:string}> $item_refs
+ * @var array<string, int>         $attempt_counts
+ * @var int                        $attempt_days
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -32,6 +37,78 @@ $base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.
 		<p><?php echo esc_html( $msg_map[ $msg ][1] ); ?></p>
 	</div>
 <?php endif; ?>
+
+<!-- -----------------------------------------------------------------------
+     Upload attempts
+--------------------------------------------------------------------- -->
+<div class="postbox" style="padding:1rem 1.25rem;max-width:700px;margin:1rem 0 1.5rem;">
+	<h2 style="margin-top:0">
+		<?php
+		printf(
+			// translators: %d: number of days in the attempt window
+			esc_html__( 'Upload attempts (last %d days)', 'wp-news-collector' ),
+			(int) $attempt_days
+		);
+		?>
+	</h2>
+	<p class="description" style="margin:0 0 .5rem">
+		<?php esc_html_e( 'The uploads table only keeps the current state, and repairing a piece erases its error. This log records one row per attempt, which is what makes the real failure rate measurable.', 'wp-news-collector' ); ?>
+	</p>
+	<?php
+	$outcome_labels = [
+		'ok'              => __( 'Uploaded', 'wp-news-collector' ),
+		'download_failed' => __( 'Download failed', 'wp-news-collector' ),
+		'download_gone'   => __( 'Source gone', 'wp-news-collector' ),
+		'upload_failed'   => __( 'Catbox rejected', 'wp-news-collector' ),
+	];
+	$attempt_total = array_sum( array_map( 'intval', (array) $attempt_counts ) );
+	?>
+	<?php if ( 0 === $attempt_total ) : ?>
+		<p style="margin:0"><span class="description"><?php esc_html_e( 'No attempts recorded yet.', 'wp-news-collector' ); ?></span></p>
+	<?php else : ?>
+		<p style="margin:0">
+			<?php
+			$parts = [];
+			foreach ( $outcome_labels as $okey => $olabel ) {
+				$ocount = (int) ( $attempt_counts[ $okey ] ?? 0 );
+				if ( 0 === $ocount ) {
+					continue;
+				}
+				$parts[] = sprintf( '%s: %d', $olabel, $ocount );
+			}
+			echo esc_html( implode( ' · ', $parts ) );
+			?>
+			<span class="description">
+				&middot;
+				<?php
+				printf(
+					// translators: %d: total attempts in the window
+					esc_html( _n( '%d attempt total', '%d attempts total', (int) $attempt_total, 'wp-news-collector' ) ),
+					(int) $attempt_total
+				);
+				?>
+			</span>
+		</p>
+	<?php endif; ?>
+	<?php if ( (int) $gone > 0 ) : ?>
+		<p style="margin:.5rem 0 0">
+			<?php
+			printf(
+				// translators: %d: number of retired rows
+				esc_html(
+					_n(
+						'%d piece retired: its original source is gone for good and is no longer retried.',
+						'%d pieces retired: their original source is gone for good and they are no longer retried.',
+						(int) $gone,
+						'wp-news-collector'
+					)
+				),
+				(int) $gone
+			);
+			?>
+		</p>
+	<?php endif; ?>
+</div>
 
 <!-- -----------------------------------------------------------------------
      Orphaned upload rows
@@ -86,6 +163,7 @@ $base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.
 		'all'        => __( 'All', 'wp-news-collector' ),
 		'unassigned' => __( 'No album', 'wp-news-collector' ),
 		'failed'     => sprintf( '%s (%d)', __( 'Failed', 'wp-news-collector' ), (int) $failed ),
+		'gone'       => sprintf( '%s (%d)', __( 'Retired', 'wp-news-collector' ), (int) $gone ),
 	];
 	$f_links = [];
 	foreach ( $filters as $fkey => $flabel ) {
@@ -110,6 +188,7 @@ $base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.
 			<th><?php esc_html_e( 'Catbox URL', 'wp-news-collector' ); ?></th>
 			<th style="width:100px"><?php esc_html_e( 'Type', 'wp-news-collector' ); ?></th>
 			<th style="width:140px"><?php esc_html_e( 'Source', 'wp-news-collector' ); ?></th>
+			<th style="width:80px"><?php esc_html_e( 'Item', 'wp-news-collector' ); ?></th>
 			<th style="width:90px"><?php esc_html_e( 'Album', 'wp-news-collector' ); ?></th>
 			<th><?php esc_html_e( 'Error', 'wp-news-collector' ); ?></th>
 			<th style="width:140px"><?php esc_html_e( 'Uploaded', 'wp-news-collector' ); ?></th>
@@ -121,6 +200,12 @@ $base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.
 			$up_catbox = (string) ( $upload['catbox_url'] ?? '' );
 			$up_error  = (string) ( $upload['error'] ?? '' );
 			$is_failed = '' === $up_catbox;
+			$up_id     = (int) $upload['id'];
+			$is_gone   = ! empty( $upload['source_gone'] );
+			$is_linked = ! empty( $linked_map[ $up_id ] );
+			// Retry only where it could succeed: still in the item, source not expired.
+			$can_retry = $is_failed && ! $is_gone && $is_linked;
+			$up_ref    = $item_refs[ (string) ( $upload['item_guid'] ?? '' ) ] ?? null;
 			?>
 		<tr<?php echo $is_failed ? ' style="background:#fcf0f1"' : ''; ?>>
 			<td>
@@ -138,6 +223,15 @@ $base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.
 			</td>
 			<td><?php echo esc_html( (string) $upload['upload_type'] ); ?></td>
 			<td><?php echo esc_html( (string) ( $upload['source_name'] ?: $upload['source'] ) ); ?></td>
+			<td>
+				<?php if ( is_array( $up_ref ) ) : ?>
+					<?php $up_excerpt = trim( wp_strip_all_tags( (string) $up_ref['text'] ) ); ?>
+					<a href="<?php echo esc_url( add_query_arg( [ 'page' => 'nc_items', 'view' => $up_ref['id'] ], admin_url( 'admin.php' ) ) ); ?>"
+						title="<?php echo esc_attr( mb_substr( $up_excerpt, 0, 200 ) ); ?>">#<?php echo (int) $up_ref['id']; ?></a>
+				<?php else : ?>
+					<span style="color:#888">—</span>
+				<?php endif; ?>
+			</td>
 			<td>
 				<?php if ( ! empty( $upload['album_id'] ) ) : ?>
 					<?php
@@ -162,17 +256,29 @@ $base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.
 							<p class="description" style="margin:.4rem 0;word-break:break-word"><?php echo esc_html( $up_error ); ?></p>
 						</details>
 					<?php endif; ?>
-					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:.25rem 0 0">
-						<?php wp_nonce_field( 'nc_retry_upload' ); ?>
-						<input type="hidden" name="action" value="nc_retry_upload" />
-						<input type="hidden" name="upload_id" value="<?php echo (int) $upload['id']; ?>" />
-						<button type="submit" class="button button-small"><?php esc_html_e( 'Retry', 'wp-news-collector' ); ?></button>
-					</form>
+					<?php if ( $can_retry ) : ?>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:.25rem 0 0">
+							<?php wp_nonce_field( 'nc_retry_upload' ); ?>
+							<input type="hidden" name="action" value="nc_retry_upload" />
+							<input type="hidden" name="upload_id" value="<?php echo (int) $up_id; ?>" />
+							<button type="submit" class="button button-small"><?php esc_html_e( 'Retry', 'wp-news-collector' ); ?></button>
+						</form>
+					<?php elseif ( $is_gone ) : ?>
+						<p class="description" style="margin:.25rem 0 0">
+							<?php esc_html_e( 'Source gone: the original link expired, so a retry cannot recover it.', 'wp-news-collector' ); ?>
+						</p>
+					<?php else : ?>
+						<p class="description" style="margin:.25rem 0 0">
+							<?php esc_html_e( 'No longer part of the item: this row is history, not pending work.', 'wp-news-collector' ); ?>
+						</p>
+					<?php endif; ?>
 						<?php
 						// Mirrors alerta-boe's backoffLabel: "N reintentos · próximo <date>",
 						// or "reintento pendiente" once next_retry_at is due.
 						$up_retries = (int) ( $upload['retry_count'] ?? 0 );
-						$up_next    = (string) ( $upload['next_retry_at'] ?? '' );
+						// A parked orphan carries a year-2999 sentinel; neither it nor a
+						// retired row has a next run worth announcing.
+						$up_next    = $can_retry ? (string) ( $upload['next_retry_at'] ?? '' ) : '';
 						if ( $up_retries > 0 || '' !== $up_next ) :
 							$backoff = [];
 							if ( $up_retries > 0 ) {

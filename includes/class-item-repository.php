@@ -128,6 +128,35 @@ class NC_Item_Repository {
 		return is_array( $row ) ? $this->decode_row( $row ) : null;
 	}
 
+	/**
+	 * Minimal (id, text) refs for a set of guids: one query for a whole page of
+	 * Catbox upload rows instead of one per row.
+	 *
+	 * @param string[] $guids
+	 * @return array<string, array{id:int, text:string}> keyed by guid
+	 */
+	public function get_refs_by_guids( array $guids ): array {
+		$guids = array_values( array_unique( array_filter( array_map( 'strval', $guids ) ) ) );
+		if ( empty( $guids ) ) {
+			return [];
+		}
+		global $wpdb;
+		$placeholders = implode( ',', array_fill( 0, count( $guids ), '%s' ) );
+		$rows         = $wpdb->get_results(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare( "SELECT id, guid, text FROM {$this->table} WHERE guid IN ({$placeholders})", ...$guids ),
+			ARRAY_A
+		);
+		$out = [];
+		foreach ( (array) $rows as $row ) {
+			$out[ (string) $row['guid'] ] = [
+				'id'   => (int) $row['id'],
+				'text' => (string) ( $row['text'] ?? '' ),
+			];
+		}
+		return $out;
+	}
+
 	/** Swap one original media URL for its Catbox URL. Returns published_at or null. */
 	public function replace_media_url( string $item_guid, string $upload_type, string $original_url, string $new_url ): ?string {
 		$item = $this->get_by_guid( $item_guid );

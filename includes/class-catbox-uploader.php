@@ -7,7 +7,17 @@
 
 defined( 'ABSPATH' ) || exit;
 
-class NC_Catbox_Exception extends RuntimeException {}
+/** $stage: which side broke ('download'|'upload'). $permanent: source gone for good. */
+class NC_Catbox_Exception extends RuntimeException {
+
+	public function __construct(
+		string $message,
+		public string $stage = 'upload',
+		public bool $permanent = false
+	) {
+		parent::__construct( $message );
+	}
+}
 
 class NC_Catbox_Uploader {
 
@@ -32,7 +42,21 @@ class NC_Catbox_Uploader {
 		'audio/mp4'       => '.m4a',
 	];
 
+	/** Attempt-log outcomes. */
+	public const OUTCOME_OK              = 'ok';
+	public const OUTCOME_DOWNLOAD_FAILED = 'download_failed';
+	public const OUTCOME_DOWNLOAD_GONE   = 'download_gone';
+	public const OUTCOME_UPLOAD_FAILED   = 'upload_failed';
+
 	public function __construct( private string $userhash = '' ) {}
+
+	/** Attempt-log outcome for a failure: which side of the transfer broke. */
+	public static function outcome_of( NC_Catbox_Exception $e ): string {
+		if ( 'download' !== $e->stage ) {
+			return self::OUTCOME_UPLOAD_FAILED;
+		}
+		return $e->permanent ? self::OUTCOME_DOWNLOAD_GONE : self::OUTCOME_DOWNLOAD_FAILED;
+	}
 
 	/**
 	 * Upload a remote URL to Catbox. Downloads the asset locally first, then
@@ -89,11 +113,12 @@ class NC_Catbox_Uploader {
 			]
 		);
 		if ( is_wp_error( $response ) ) {
-			throw new NC_Catbox_Exception( 'Download failed: ' . $response->get_error_message() );
+			throw new NC_Catbox_Exception( 'Download failed: ' . $response->get_error_message(), 'download' );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 ) {
-			throw new NC_Catbox_Exception( 'Download HTTP ' . $code );
+			// Telegram's CDN links expire: once 404/410, no amount of retrying brings them back.
+			throw new NC_Catbox_Exception( 'Download HTTP ' . $code, 'download', in_array( $code, [ 404, 410 ], true ) );
 		}
 		$content_type = strtolower( (string) wp_remote_retrieve_header( $response, 'content-type' ) );
 		$ok           = false;
@@ -104,11 +129,11 @@ class NC_Catbox_Uploader {
 			}
 		}
 		if ( ! $ok ) {
-			throw new NC_Catbox_Exception( 'Unexpected content-type: ' . $content_type );
+			throw new NC_Catbox_Exception( 'Unexpected content-type: ' . $content_type, 'download' );
 		}
 		$body = (string) wp_remote_retrieve_body( $response );
 		if ( strlen( $body ) < self::MIN_BYTES ) {
-			throw new NC_Catbox_Exception( 'Response too small (' . strlen( $body ) . ' bytes)' );
+			throw new NC_Catbox_Exception( 'Response too small (' . strlen( $body ) . ' bytes)', 'download' );
 		}
 
 		return [ $body, self::suffix_for( $url, $content_type ) ];

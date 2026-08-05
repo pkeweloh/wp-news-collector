@@ -10,14 +10,16 @@ defined( 'ABSPATH' ) || exit;
 class NC_Catbox_Upload_Repository {
 
 	private string $uploads_table;
+	private string $attempts_table;
 	private string $albums_table;
 	private string $items_table;
 
 	public function __construct() {
 		global $wpdb;
-		$this->uploads_table = $wpdb->prefix . 'nc_catbox_uploads';
-		$this->albums_table  = $wpdb->prefix . 'nc_catbox_albums';
-		$this->items_table   = $wpdb->prefix . 'nc_items';
+		$this->uploads_table  = $wpdb->prefix . 'nc_catbox_uploads';
+		$this->attempts_table = $wpdb->prefix . 'nc_catbox_upload_attempts';
+		$this->albums_table   = $wpdb->prefix . 'nc_catbox_albums';
+		$this->items_table    = $wpdb->prefix . 'nc_items';
 	}
 
 	// Upload logging
@@ -123,9 +125,11 @@ class NC_Catbox_Upload_Repository {
 		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$this->uploads_table} WHERE error IS NOT NULL" );
 	}
 
-	// $max_attempts <= 0 means no attempt cap.
+	// $max_attempts <= 0 means no attempt cap. source_gone is filtered here and not
+	// in PHP, or expired sources would still crowd the batch out.
 	private const RETRYABLE_WHERE = "error IS NOT NULL
 		AND ( catbox_url IS NULL OR catbox_url = '' )
+		AND source_gone = 0
 		AND ( next_retry_at IS NULL OR next_retry_at <= %s )
 		AND ( %d <= 0 OR retry_count < %d )";
 
@@ -167,6 +171,24 @@ class NC_Catbox_Upload_Repository {
 		);
 	}
 
+	/** Source answered 404/410: retire it, kept distinct from an orphan for the UI. */
+	public function mark_source_gone( int $id ): void {
+		global $wpdb;
+		$wpdb->update(
+			$this->uploads_table,
+			[ 'source_gone' => 1 ],
+			[ 'id' => $id ],
+			[ '%d' ],
+			[ '%d' ]
+		);
+	}
+
+	public function count_source_gone(): int {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$this->uploads_table} WHERE source_gone = 1" );
+	}
+
 	// Far-future so RETRYABLE_WHERE (next_retry_at <= now) excludes it from query + count.
 	private const ORPHAN_PARK_UNTIL = '2999-01-01 00:00:00';
 
@@ -180,6 +202,80 @@ class NC_Catbox_Upload_Repository {
 			[ '%s' ],
 			[ '%d' ]
 		);
+	}
+
+	// Attempt log
+
+	/** Days of attempt history kept; pruned from the daily sync. */
+	public const ATTEMPT_RETENTION_DAYS = 365;
+
+	/**
+	 * Append one attempt to the audit log.
+	 *
+	 * @param string $trigger ingest|auto_retry|manual
+	 * @param string $outcome ok|download_failed|download_gone|upload_failed
+	 */
+	public function log_attempt(
+		string $item_guid,
+		string $upload_type,
+		string $original_url,
+		string $trigger,
+		string $outcome,
+		?string $error = null
+	): void {
+		global $wpdb;
+		$wpdb->insert(
+			$this->attempts_table,
+			[
+				'attempted_at' => gmdate( 'Y-m-d H:i:s' ),
+				'item_guid'    => $item_guid,
+				'upload_type'  => $upload_type,
+				'original_url' => $original_url,
+				'trigger_type' => $trigger,
+				'outcome'      => $outcome,
+				'error'        => $error,
+			],
+			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+		);
+	}
+
+	/** Drop attempts older than the retention window (0 = keep everything). */
+	public function prune_attempts( int $retention_days ): int {
+		if ( $retention_days < 1 ) {
+			return 0;
+		}
+		global $wpdb;
+		$cutoff = gmdate( 'Y-m-d H:i:s', time() - $retention_days * DAY_IN_SECONDS );
+		return (int) $wpdb->query(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare( "DELETE FROM {$this->attempts_table} WHERE attempted_at < %s", $cutoff )
+		);
+	}
+
+	/**
+	 * Attempt counts by outcome over a recent window: the uploads table is state
+	 * and loses the cause, so the failure rate is only observable here.
+	 *
+	 * @return array<string, int> outcome => count
+	 */
+	public function attempt_outcome_counts( int $days = 30 ): array {
+		global $wpdb;
+		$since = gmdate( 'Y-m-d H:i:s', time() - max( 1, $days ) * DAY_IN_SECONDS );
+		$rows  = $wpdb->get_results(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT outcome, COUNT(*) AS total FROM {$this->attempts_table}
+				 WHERE attempted_at >= %s GROUP BY outcome",
+				$since
+			),
+			ARRAY_A
+		);
+		$out = [];
+		foreach ( (array) $rows as $row ) {
+			$out[ (string) $row['outcome'] ] = (int) $row['total'];
+		}
+		return $out;
 	}
 
 	/**
@@ -276,6 +372,8 @@ class NC_Catbox_Upload_Repository {
 			$where .= " AND album_id IS NULL AND catbox_url IS NOT NULL AND catbox_url != ''";
 		} elseif ( 'failed' === $filter ) {
 			$where .= ' AND error IS NOT NULL';
+		} elseif ( 'gone' === $filter ) {
+			$where .= ' AND source_gone = 1';
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$this->uploads_table} {$where}" );

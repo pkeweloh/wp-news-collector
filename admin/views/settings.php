@@ -105,7 +105,8 @@ defined( 'ABSPATH' ) || exit;
 						printf(
 							/* translators: %s: current source page URL example */
 							esc_html__( 'URL prefix for per-source channel pages. Must differ from the item slug. Current: %s', 'wp-news-collector' ),
-							'<code>' . esc_html( home_url( '/' . ( $settings['source_slug'] ?? 'source' ) . '/channel' ) ) . '</code>'
+							/* translators: example channel handle shown in the source URL preview; keep it URL-safe */
+						'<code>' . esc_html( home_url( '/' . ( $settings['source_slug'] ?? 'source' ) . '/' . __( 'channel', 'wp-news-collector' ) ) ) . '</code>'
 						);
 						?>
 					</p>

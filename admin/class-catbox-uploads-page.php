@@ -12,13 +12,19 @@ defined( 'ABSPATH' ) || exit;
 
 class NC_Catbox_Uploads_Page {
 
+	/** Window for the attempt-log summary. */
+	private const ATTEMPT_WINDOW_DAYS = 30;
+
 	public function __construct(
-		private NC_Catbox_Upload_Repository $uploads
+		private NC_Catbox_Upload_Repository $uploads,
+		private NC_Catbox_Syncer $syncer,
+		private NC_Item_Repository $items
 	) {}
 
 	public function render(): void {
 		$total_uploads = $this->uploads->count_total();
 		$failed        = $this->uploads->count_failed();
+		$gone          = $this->uploads->count_source_gone();
 		$cleanup_stats = get_option( 'nc_catbox_cleanup_stats', null );
 		$msg           = isset( $_GET['nc_msg'] ) ? sanitize_key( (string) $_GET['nc_msg'] ) : '';
 
@@ -26,6 +32,19 @@ class NC_Catbox_Uploads_Page {
 		$uploads_filter   = isset( $_GET['uf'] ) ? sanitize_key( (string) $_GET['uf'] ) : 'all';
 		$uploads_data     = $this->uploads->get_page( $uploads_page_num, 30, $uploads_filter );
 		$album_month_map  = $this->uploads->get_album_month_map();
+
+		$attempt_days   = self::ATTEMPT_WINDOW_DAYS;
+		$attempt_counts = $this->uploads->attempt_outcome_counts( $attempt_days );
+
+		// The view needs this to hide retry buttons that could not work.
+		$failed_rows = [];
+		foreach ( (array) $uploads_data['items'] as $row ) {
+			if ( '' === (string) ( $row['catbox_url'] ?? '' ) ) {
+				$failed_rows[] = $row;
+			}
+		}
+		$linked_map = $this->syncer->linked_map( $failed_rows );
+		$item_refs  = $this->items->get_refs_by_guids( wp_list_pluck( (array) $uploads_data['items'], 'item_guid' ) );
 
 		include NC_PLUGIN_DIR . 'admin/views/catbox-uploads.php';
 	}

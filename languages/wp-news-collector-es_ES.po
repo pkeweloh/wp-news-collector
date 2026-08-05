@@ -105,6 +105,9 @@ msgstr "Configura el userhash de Catbox en Ajustes antes de gestionar álbumes."
 msgid "Created"
 msgstr "Creado"
 
+msgid "channel"
+msgstr "canal"
+
 msgid "Daily sync"
 msgstr "Sync diario"
 
@@ -642,3 +645,48 @@ msgstr "Limpiar"
 
 msgid "Slug"
 msgstr "Slug"
+
+msgid "Upload attempts (last %d days)"
+msgstr "Intentos de subida (últimos %d días)"
+
+msgid "The uploads table only keeps the current state, and repairing a piece erases its error. This log records one row per attempt, which is what makes the real failure rate measurable."
+msgstr "La tabla de subidas solo guarda el estado actual, y reparar una pieza borra su error. Este registro anota una fila por intento, que es lo que hace medible la tasa real de fallo."
+
+msgid "Download failed"
+msgstr "Fallo de descarga"
+
+msgid "Source gone"
+msgstr "Origen caducado"
+
+msgid "Catbox rejected"
+msgstr "Catbox rechazó la subida"
+
+msgid "No attempts recorded yet."
+msgstr "Todavía no hay intentos registrados."
+
+msgid "%d attempt total"
+msgid_plural "%d attempts total"
+msgstr[0] "%d intento en total"
+msgstr[1] "%d intentos en total"
+
+msgid "%d piece retired: its original source is gone for good and is no longer retried."
+msgid_plural "%d pieces retired: their original source is gone for good and they are no longer retried."
+msgstr[0] "%d pieza retirada: su origen ha caducado definitivamente y ya no se reintenta."
+msgstr[1] "%d piezas retiradas: su origen ha caducado definitivamente y ya no se reintentan."
+
+msgid "Item"
+msgstr "Ítem"
+
+msgid "Retired"
+msgstr "Retiradas"
+
+msgid "Source gone: the original link expired, so a retry cannot recover it."
+msgstr "Origen caducado: el enlace original ya no existe, así que reintentar no puede recuperarlo."
+
+msgid "No longer part of the item: this row is history, not pending work."
+msgstr "Ya no forma parte de la noticia: esta fila es histórico, no trabajo pendiente."
+
+msgid "%d retired (source gone)."
+msgid_plural "%d retired (sources gone)."
+msgstr[0] "%d retirada (origen caducado)."
+msgstr[1] "%d retiradas (origen caducado)."

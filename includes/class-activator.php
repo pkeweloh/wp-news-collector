@@ -21,6 +21,7 @@ class NC_Activator {
 		$sources          = $wpdb->prefix . 'nc_sources';
 		$items            = $wpdb->prefix . 'nc_items';
 		$catbox_uploads   = $wpdb->prefix . 'nc_catbox_uploads';
+		$catbox_attempts  = $wpdb->prefix . 'nc_catbox_upload_attempts';
 		$catbox_albums    = $wpdb->prefix . 'nc_catbox_albums';
 		$source_covers    = $wpdb->prefix . 'nc_source_covers';
 
@@ -69,10 +70,27 @@ class NC_Activator {
 			album_id      VARCHAR(32)    DEFAULT NULL,
 			retry_count   INT            NOT NULL DEFAULT 0,
 			next_retry_at DATETIME       DEFAULT NULL,
+			source_gone   TINYINT(1)     NOT NULL DEFAULT 0,
 			uploaded_at   DATETIME       NOT NULL,
 			created_at    DATETIME       NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY uk_catbox_url (catbox_url(191))
+		) {$charset_collate};";
+
+		// One row per attempt: nc_catbox_uploads is overwritten on every retry, so
+		// the cause is only knowable here. trigger_type: `trigger` is reserved.
+		$sql_catbox_attempts = "CREATE TABLE {$catbox_attempts} (
+			id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			attempted_at DATETIME        NOT NULL,
+			item_guid    VARCHAR(500)    NOT NULL DEFAULT '',
+			upload_type  VARCHAR(32)     NOT NULL DEFAULT '',
+			original_url TEXT,
+			trigger_type VARCHAR(20)     NOT NULL DEFAULT '',
+			outcome      VARCHAR(20)     NOT NULL DEFAULT '',
+			error        TEXT,
+			PRIMARY KEY  (id),
+			KEY idx_attempted (attempted_at),
+			KEY idx_attempt_guid (item_guid(191))
 		) {$charset_collate};";
 
 		$sql_catbox_albums = "CREATE TABLE {$catbox_albums} (
@@ -104,6 +122,7 @@ class NC_Activator {
 		dbDelta( $sql_sources );
 		dbDelta( $sql_items );
 		dbDelta( $sql_catbox_uploads );
+		dbDelta( $sql_catbox_attempts );
 		dbDelta( $sql_catbox_albums );
 		dbDelta( $sql_source_covers );
 
@@ -142,6 +161,10 @@ class NC_Activator {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN next_retry_at DATETIME DEFAULT NULL AFTER retry_count" );
 		}
+		if ( ! in_array( 'source_gone', $columns, true ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN source_gone TINYINT(1) NOT NULL DEFAULT 0 AFTER next_retry_at" );
+		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "ALTER TABLE {$table} MODIFY catbox_url VARCHAR(500) DEFAULT NULL" );
 	}
@@ -152,14 +175,17 @@ class NC_Activator {
 	public static function uninstall(): void {
 		global $wpdb;
 
-		$sources        = $wpdb->prefix . 'nc_sources';
-		$items          = $wpdb->prefix . 'nc_items';
-		$catbox_uploads = $wpdb->prefix . 'nc_catbox_uploads';
-		$catbox_albums  = $wpdb->prefix . 'nc_catbox_albums';
-		$source_covers  = $wpdb->prefix . 'nc_source_covers';
+		$sources         = $wpdb->prefix . 'nc_sources';
+		$items           = $wpdb->prefix . 'nc_items';
+		$catbox_uploads  = $wpdb->prefix . 'nc_catbox_uploads';
+		$catbox_attempts = $wpdb->prefix . 'nc_catbox_upload_attempts';
+		$catbox_albums   = $wpdb->prefix . 'nc_catbox_albums';
+		$source_covers   = $wpdb->prefix . 'nc_source_covers';
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "DROP TABLE IF EXISTS {$source_covers}" );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "DROP TABLE IF EXISTS {$catbox_attempts}" );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "DROP TABLE IF EXISTS {$catbox_uploads}" );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

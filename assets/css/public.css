@@ -426,10 +426,9 @@ button.nc-media-cell:hover .nc-media-cell__thumb { transform: scale(1.03); }
 	padding: 0 16px;
 }
 
+/* Width and padding come from .nc-detail-page__inner; repeating them indented it. */
 .nc-source-page__title {
-	max-width: 700px;
-	margin: 24px auto 0;
-	padding: 0 16px;
+	margin: 0 0 20px;
 }
 
 @media (max-width: 600px) {

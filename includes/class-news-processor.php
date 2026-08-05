@@ -634,6 +634,7 @@ class NC_News_Processor {
 			$catbox_url = $this->catbox->upload_from_url( $url );
 			if ( $this->uploads ) {
 				$this->uploads->log_upload( $source, $source_name, $guid, $upload_type, $url, $catbox_url );
+				$this->uploads->log_attempt( $guid, $upload_type, $url, 'ingest', NC_Catbox_Uploader::OUTCOME_OK );
 			}
 			return $catbox_url;
 		} catch ( NC_Catbox_Exception $e ) {
@@ -641,6 +642,7 @@ class NC_News_Processor {
 			if ( $this->uploads ) {
 				// Track the failure so it can be surfaced and retried from admin.
 				$this->uploads->resolve_result( $source, $source_name, $guid, $upload_type, $url, null, $e->getMessage() );
+				$this->uploads->log_attempt( $guid, $upload_type, $url, 'ingest', NC_Catbox_Uploader::outcome_of( $e ), $e->getMessage() );
 			}
 			return '';
 		}

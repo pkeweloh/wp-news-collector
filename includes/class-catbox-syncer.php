@@ -30,13 +30,17 @@ class NC_Catbox_Syncer {
 		$stats = [ 'tracked' => 0, 'assigned' => 0, 'errors' => [] ];
 		$this->fill_missing_tracking( $stats );
 		$this->assign_to_albums( $stats );
+		$this->uploads->prune_attempts( NC_Catbox_Upload_Repository::ATTEMPT_RETENTION_DAYS );
 		$stats['ran_at'] = gmdate( 'Y-m-d H:i:s' );
 		update_option( 'nc_catbox_sync_stats', $stats );
 		return $stats;
 	}
 
-	/** @return array<string, mixed> */
-	public function retry_upload( int $upload_id ): array {
+	/**
+	 * @param string $trigger ingest|auto_retry|manual, recorded in the attempt log.
+	 * @return array<string, mixed>
+	 */
+	public function retry_upload( int $upload_id, string $trigger = 'manual' ): array {
 		$row = $this->uploads->get_by_id( $upload_id );
 		if ( null === $row ) {
 			return [ 'ok' => false, 'not_found' => true, 'error' => 'Upload not found' ];
@@ -55,21 +59,28 @@ class NC_Catbox_Syncer {
 			$new_url = $this->catbox->upload_from_url( $src_url );
 		} catch ( NC_Catbox_Exception $e ) {
 			$this->uploads->set_result( $upload_id, null, $e->getMessage() );
-			return [ 'ok' => false, 'error' => $e->getMessage() ];
+			$outcome = NC_Catbox_Uploader::outcome_of( $e );
+			$this->uploads->log_attempt( $guid, $upload_type, $original, $trigger, $outcome, $e->getMessage() );
+			if ( NC_Catbox_Uploader::OUTCOME_DOWNLOAD_GONE === $outcome ) {
+				$this->uploads->mark_source_gone( $upload_id );
+			}
+			return [ 'ok' => false, 'error' => $e->getMessage(), 'outcome' => $outcome ];
 		}
 
 		$published_at = $this->items->replace_media_url( $guid, $upload_type, $original, $new_url );
 		$this->uploads->set_result( $upload_id, $new_url, null );
+		$this->uploads->log_attempt( $guid, $upload_type, $original, $trigger, NC_Catbox_Uploader::OUTCOME_OK );
 		$album_id = $this->assign_one_to_album( $new_url, $published_at );
 		return [ 'ok' => true, 'catbox_url' => $new_url, 'album_id' => $album_id ];
 	}
 
 	/**
 	 * Retry failed uploads with per-row exponential backoff and a circuit-breaker.
-	 * Orphaned failures (piece gone from the item, original URL expired) are
-	 * skipped rather than retried.
+	 * Orphaned failures (piece gone from the item) are parked rather than retried.
+	 * A 404/410 source is retired and kept out of the breaker: counting dead links
+	 * would abort every sweep and starve the pieces that are still recoverable.
 	 *
-	 * @return array{attempted:int, succeeded:int, failed:int, orphaned:int, aborted:bool, remaining:int, ran_at:string}
+	 * @return array{attempted:int, succeeded:int, failed:int, gone:int, orphaned:int, aborted:bool, remaining:int, ran_at:string}
 	 */
 	public function retry_failed(
 		int $batch_size = 10,
@@ -78,7 +89,7 @@ class NC_Catbox_Syncer {
 		int $backoff_base = 600,
 		int $backoff_cap = 21600
 	): array {
-		$stats = [ 'attempted' => 0, 'succeeded' => 0, 'failed' => 0, 'orphaned' => 0, 'aborted' => false ];
+		$stats = [ 'attempted' => 0, 'succeeded' => 0, 'failed' => 0, 'gone' => 0, 'orphaned' => 0, 'aborted' => false ];
 		$batch_size = max( 1, $batch_size );
 
 		// Over-fetch: the linked filter runs in PHP, so orphans must not eat the batch.
@@ -102,10 +113,16 @@ class NC_Catbox_Syncer {
 			}
 
 			$stats['attempted']++;
-			$result = $this->retry_upload( $id );
+			$result = $this->retry_upload( $id, 'auto_retry' );
 			if ( ! empty( $result['ok'] ) ) {
 				$stats['succeeded']++;
 				$consecutive = 0;
+				continue;
+			}
+
+			// Already retired by retry_upload: no backoff, and out of the breaker.
+			if ( NC_Catbox_Uploader::OUTCOME_DOWNLOAD_GONE === ( $result['outcome'] ?? '' ) ) {
+				$stats['gone']++;
 				continue;
 			}
 
@@ -178,6 +195,41 @@ class NC_Catbox_Syncer {
 		return $stats;
 	}
 
+	/**
+	 * Which upload rows are still linked to a live piece, keyed by upload id.
+	 * Grouped by guid so it costs one item fetch per distinct item.
+	 *
+	 * @param array<int, array<string, mixed>> $rows
+	 * @return array<int, bool>
+	 */
+	public function linked_map( array $rows ): array {
+		$items  = [];
+		$linked = [];
+		foreach ( $rows as $row ) {
+			$id       = (int) ( $row['id'] ?? 0 );
+			$guid     = (string) ( $row['item_guid'] ?? '' );
+			$type     = (string) ( $row['upload_type'] ?? '' );
+			$original = (string) ( $row['original_url'] ?? '' );
+			if ( '' === $guid || '' === $original ) {
+				$linked[ $id ] = false;
+				continue;
+			}
+			if ( ! array_key_exists( $guid, $items ) ) {
+				$items[ $guid ] = $this->items->get_by_guid( $guid );
+			}
+			$item = $items[ $guid ];
+			$hit  = false;
+			foreach ( is_array( $item ) ? $this->pending_pieces( $item ) : [] as [ $ptype, $purl ] ) {
+				if ( $ptype === $type && $purl === $original ) {
+					$hit = true;
+					break;
+				}
+			}
+			$linked[ $id ] = $hit;
+		}
+		return $linked;
+	}
+
 	/** Whether (upload_type, original_url) is still a live, un-uploaded piece of its item. */
 	private function is_piece_linked( string $guid, string $upload_type, string $original_url ): bool {
 		if ( '' === $guid || '' === $original_url ) {
@@ -212,11 +264,13 @@ class NC_Catbox_Syncer {
 				$new_url = $this->catbox->upload_from_url( $src_url );
 			} catch ( NC_Catbox_Exception $e ) {
 				$this->uploads->resolve_result( $source, $source_name, $guid, $upload_type, $original, null, $e->getMessage() );
+				$this->uploads->log_attempt( $guid, $upload_type, $original, 'manual', NC_Catbox_Uploader::outcome_of( $e ), $e->getMessage() );
 				$results[] = [ 'type' => $upload_type, 'error' => $e->getMessage() ];
 				continue;
 			}
 			$this->items->replace_media_url( $guid, $upload_type, $original, $new_url );
 			$this->uploads->resolve_result( $source, $source_name, $guid, $upload_type, $original, $new_url, null );
+			$this->uploads->log_attempt( $guid, $upload_type, $original, 'manual', NC_Catbox_Uploader::OUTCOME_OK );
 			$this->assign_one_to_album( $new_url, (string) ( $item['published_at'] ?? '' ) );
 			$results[] = [ 'type' => $upload_type, 'catbox_url' => $new_url ];
 		}

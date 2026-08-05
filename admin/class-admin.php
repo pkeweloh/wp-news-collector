@@ -33,7 +33,7 @@ class NC_Admin {
 		$this->sources_page  = new NC_Sources_Page( $this->sources );
 		$this->items_page    = new NC_Items_Page( $this->items );
 		$this->catbox_page   = new NC_Catbox_Page( $this->uploads, $this->syncer, $this->covers, $this->items );
-		$this->catbox_uploads_page = new NC_Catbox_Uploads_Page( $this->uploads );
+		$this->catbox_uploads_page = new NC_Catbox_Uploads_Page( $this->uploads, $this->syncer, $this->items );
 	}
 
 	public function register_menus(): void {
