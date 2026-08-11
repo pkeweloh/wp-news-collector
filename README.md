@@ -7,6 +7,7 @@ A WordPress plugin that aggregates RSS/RSSHub feeds (Telegram channels), parses 
 - **Scheduled ingestion** via Action Scheduler. Configurable interval.
 - **Robust parser** handling Telegram/RSSHub quirks: blockquote article extraction, `too_big` video fallback, image dedup, YouTube ID detection, "Forwarded From" stripping, OG metadata scraping.
 - **Catbox media hosting**. Downloads media locally and re-uploads via `fileupload` multipart (works with Telegram CDN token-protected URLs that `urlupload` cannot access). Monthly album organisation with automatic daily sync.
+- **Expired Telegram links re-minted.** Signed `cdn*.telesco.pe` URLs die in hours, but the message does not: a retry re-reads `t.me/{channel}/{id}?embed=1`, which re-signs the media on every request, and matches each stored piece by position. No Telegram account or API credentials involved.
 - **URL shortener resolution** for `t.co`, `bit.ly`, `tinyurl.com`, etc.
 - **Feed UI:**
   - Single-image display (no crop, natural dimensions).
@@ -138,18 +139,26 @@ Stored as option `nc_settings`:
 | `catbox_userhash`        | `''`       | Catbox account userhash (optional, required for albums). |
 | `fetch_interval_minutes` | `30`       | Recurring fetch interval in minutes. |
 | `max_items_per_source`   | `50`       | Items inserted per source per cycle. |
-| `item_slug`              | `noticia`  | URL prefix for single-item pages (e.g. set to `news` for `/news/123`). |
+| `item_slug`              | `item`     | URL prefix for single-item pages (e.g. set to `news` for `/news/123`). |
+| `source_slug`            | `source`   | URL prefix for per-source landing pages (`/source/<channel>/`). |
+| `catbox_retry_enabled`   | `true`     | Sweep failed uploads automatically. |
+| `catbox_retry_interval`  | `3600`     | Seconds between retry sweeps. |
+| `catbox_retry_batch_size` | `10`      | Uploads attempted per sweep. |
+| `catbox_retry_max_attempts` | `8`     | Attempts before a piece counts as out of attempts (`0` = no cap). |
+| `catbox_retry_breaker_threshold` | `3` | Consecutive failures that abort a sweep (`0` = never). |
 
 ## Database
 
-Four custom tables created on activation, dropped on uninstall:
+Six custom tables created on activation, dropped on uninstall:
 
 | Table | Contents |
 |-------|----------|
 | `{prefix}nc_sources` | RSS feed sources (url, name, enabled) |
-| `{prefix}nc_items` | Parsed items (text, images JSON, videos JSON, article JSON, …) |
-| `{prefix}nc_catbox_uploads` | Per-file Catbox upload tracking (url, type, album) |
+| `{prefix}nc_items` | Parsed items (text, images JSON, videos JSON, audios JSON, article JSON, …) |
+| `{prefix}nc_catbox_uploads` | Per-file Catbox upload state (url, type, album, error, retry backoff) |
+| `{prefix}nc_catbox_upload_attempts` | One row per upload attempt (trigger, outcome, error) |
 | `{prefix}nc_catbox_albums` | Monthly Catbox albums (YYYY-MM → album short code) |
+| `{prefix}nc_source_covers` | Recurring channel cover images pending review |
 
 ## Background jobs
 
@@ -160,6 +169,9 @@ Managed by Action Scheduler (bundled in `vendor/`). View under **Tools → Sched
 | `nc_fetch_all_sources` | Every N minutes | Full fetch + parse + upload cycle. |
 | `nc_backfill_catbox` | Manual | Re-upload non-Catbox media on all items. |
 | `nc_catbox_sync` | Daily | Reconcile uploads and assign to monthly albums. |
+| `nc_catbox_retry` | Every N minutes | Retry failed uploads with per-row backoff and a circuit-breaker. |
+| `nc_detect_covers` | Daily | Flag recurring channel cover images for review. |
+| `nc_clean_covers` | Daily | Strip confirmed covers from stored items. |
 
 Trigger manually:
 ```php

@@ -5,9 +5,15 @@
  * @package wp-news-collector
  * @var int                        $total_uploads
  * @var int                        $failed
+ * @var int                        $exhausted
+ * @var int                        $parked
  * @var int                        $gone
+ * @var int                        $max_attempts
+ * @var int                        $markup_alarm
+ * @var int                        $alarm_days
  * @var array<string, mixed>|null  $cleanup_stats
  * @var string                     $msg
+ * @var int                        $msg_count
  * @var array<string, mixed>       $uploads_data
  * @var string                     $uploads_filter
  * @var array<string, string>      $album_month_map
@@ -25,6 +31,14 @@ $msg_map = [
 	'catbox_disabled' => [ 'error',   __( 'Catbox is disabled. Enable it in Settings first.', 'wp-news-collector' ) ],
 	'cleanup_scanned' => [ 'success', __( 'Orphan scan completed.', 'wp-news-collector' ) ],
 	'cleanup_deleted' => [ 'success', __( 'Orphaned upload rows deleted.', 'wp-news-collector' ) ],
+	'requeued'        => [
+		'success',
+		sprintf(
+			// translators: %d: number of pieces put back in the retry queue
+			_n( '%d retired piece put back in the queue.', '%d retired pieces put back in the queue.', $msg_count, 'wp-news-collector' ),
+			(int) $msg_count
+		),
+	],
 ];
 
 $base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.php' ) );
@@ -90,6 +104,46 @@ $base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.
 			</span>
 		</p>
 	<?php endif; ?>
+	<?php if ( (int) $markup_alarm > 0 ) : ?>
+		<div class="notice notice-error inline" style="margin:.75rem 0 0">
+			<p>
+				<?php
+				printf(
+					// translators: 1: number of attempts, 2: number of days in the window
+					esc_html(
+						_n(
+							'%1$d attempt in the last %2$d days could not read the Telegram embed page. The media is still there and we stopped finding it: the t.me markup probably changed and the reader needs updating.',
+							'%1$d attempts in the last %2$d days could not read the Telegram embed page. The media is still there and we stopped finding it: the t.me markup probably changed and the reader needs updating.',
+							(int) $markup_alarm,
+							'wp-news-collector'
+						)
+					),
+					(int) $markup_alarm,
+					(int) $alarm_days
+				);
+				?>
+			</p>
+		</div>
+	<?php endif; ?>
+	<?php if ( (int) $exhausted > 0 ) : ?>
+		<p style="margin:.5rem 0 0">
+			<?php
+			printf(
+				// translators: 1: number of pieces, 2: attempt cap
+				esc_html(
+					_n(
+						'%1$d piece used up its %2$d attempts: no sweep will pick it again, so it needs a manual retry or a decision.',
+						'%1$d pieces used up their %2$d attempts: no sweep will pick them again, so they need a manual retry or a decision.',
+						(int) $exhausted,
+						'wp-news-collector'
+					)
+				),
+				(int) $exhausted,
+				(int) $max_attempts
+			);
+			?>
+		</p>
+	<?php endif; ?>
 	<?php if ( (int) $gone > 0 ) : ?>
 		<p style="margin:.5rem 0 0">
 			<?php
@@ -97,8 +151,8 @@ $base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.
 				// translators: %d: number of retired rows
 				esc_html(
 					_n(
-						'%d piece retired: its original source is gone for good and is no longer retried.',
-						'%d pieces retired: their original source is gone for good and they are no longer retried.',
+						'%d piece retired: the fresh Telegram page did not give it either.',
+						'%d pieces retired: the fresh Telegram page did not give them either.',
 						(int) $gone,
 						'wp-news-collector'
 					)
@@ -107,6 +161,14 @@ $base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.
 			);
 			?>
 		</p>
+		<p class="description" style="margin:.25rem 0 .5rem">
+			<?php esc_html_e( 'Pieces retired before the plugin learned to re-mint expired Telegram links were given up on too early: their message is permanent and its embed page re-signs the media on every request. Requeueing them re-runs the whole recovery, which costs one fetch per message.', 'wp-news-collector' ); ?>
+		</p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php wp_nonce_field( 'nc_catbox_requeue' ); ?>
+			<input type="hidden" name="action" value="nc_catbox_requeue" />
+			<?php submit_button( __( 'Requeue retired pieces', 'wp-news-collector' ), 'secondary', 'submit', false ); ?>
+		</form>
 	<?php endif; ?>
 </div>
 
@@ -159,12 +221,20 @@ $base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.
 
 <ul class="subsubsub" style="margin-bottom:.5rem">
 	<?php
+	// Disjoint buckets: a row counted twice would make a button offer to recover
+	// more than it can.
 	$filters = [
 		'all'        => __( 'All', 'wp-news-collector' ),
 		'unassigned' => __( 'No album', 'wp-news-collector' ),
 		'failed'     => sprintf( '%s (%d)', __( 'Failed', 'wp-news-collector' ), (int) $failed ),
-		'gone'       => sprintf( '%s (%d)', __( 'Retired', 'wp-news-collector' ), (int) $gone ),
 	];
+	if ( (int) $exhausted > 0 ) {
+		$filters['exhausted'] = sprintf( '%s (%d)', __( 'Out of attempts', 'wp-news-collector' ), (int) $exhausted );
+	}
+	if ( (int) $parked > 0 ) {
+		$filters['orphaned'] = sprintf( '%s (%d)', __( 'Orphaned', 'wp-news-collector' ), (int) $parked );
+	}
+	$filters['gone'] = sprintf( '%s (%d)', __( 'Retired', 'wp-news-collector' ), (int) $gone );
 	$f_links = [];
 	foreach ( $filters as $fkey => $flabel ) {
 		$class     = $fkey === $uploads_filter ? 'current' : '';
@@ -265,7 +335,7 @@ $base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.
 						</form>
 					<?php elseif ( $is_gone ) : ?>
 						<p class="description" style="margin:.25rem 0 0">
-							<?php esc_html_e( 'Source gone: the original link expired, so a retry cannot recover it.', 'wp-news-collector' ); ?>
+							<?php esc_html_e( 'Retired: the fresh Telegram page did not give this piece either.', 'wp-news-collector' ); ?>
 						</p>
 					<?php else : ?>
 						<p class="description" style="margin:.25rem 0 0">

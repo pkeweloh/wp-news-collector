@@ -20,7 +20,8 @@ class NC_Catbox_Page {
 		$albums        = $this->uploads->get_albums_with_stats();
 		$total_uploads = $this->uploads->count_total();
 		$unassigned    = $this->uploads->count_unassigned();
-		$failed        = $this->uploads->count_failed();
+		// Same cap as the uploads page, so both read "failed" as "still actionable".
+		$failed        = $this->uploads->count_failed( (int) ( NC_Plugin::get_settings()['catbox_retry_max_attempts'] ?? 0 ) );
 		$covers        = $this->covers->get_all();
 		foreach ( $covers as $i => $cover ) {
 			$covers[ $i ]['sample_ids'] = $this->items->find_ids_with_image(

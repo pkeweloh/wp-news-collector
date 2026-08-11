@@ -669,10 +669,37 @@ msgid_plural "%d attempts total"
 msgstr[0] "%d intento en total"
 msgstr[1] "%d intentos en total"
 
-msgid "%d piece retired: its original source is gone for good and is no longer retried."
-msgid_plural "%d pieces retired: their original source is gone for good and they are no longer retried."
-msgstr[0] "%d pieza retirada: su origen ha caducado definitivamente y ya no se reintenta."
-msgstr[1] "%d piezas retiradas: su origen ha caducado definitivamente y ya no se reintentan."
+msgid "%d piece retired: the fresh Telegram page did not give it either."
+msgid_plural "%d pieces retired: the fresh Telegram page did not give them either."
+msgstr[0] "%d pieza retirada: la página fresca de Telegram tampoco la dio."
+msgstr[1] "%d piezas retiradas: la página fresca de Telegram tampoco las dio."
+
+msgid "%1$d attempt in the last %2$d days could not read the Telegram embed page. The media is still there and we stopped finding it: the t.me markup probably changed and the reader needs updating."
+msgid_plural "%1$d attempts in the last %2$d days could not read the Telegram embed page. The media is still there and we stopped finding it: the t.me markup probably changed and the reader needs updating."
+msgstr[0] "%1$d intento de los últimos %2$d días no pudo leer la página incrustada de Telegram. El medio sigue ahí y hemos dejado de encontrarlo: seguramente ha cambiado el marcado de t.me y hay que actualizar el lector."
+msgstr[1] "%1$d intentos de los últimos %2$d días no pudieron leer la página incrustada de Telegram. El medio sigue ahí y hemos dejado de encontrarlo: seguramente ha cambiado el marcado de t.me y hay que actualizar el lector."
+
+msgid "%1$d piece used up its %2$d attempts: no sweep will pick it again, so it needs a manual retry or a decision."
+msgid_plural "%1$d pieces used up their %2$d attempts: no sweep will pick them again, so they need a manual retry or a decision."
+msgstr[0] "%1$d pieza ha agotado sus %2$d intentos: ningún barrido volverá a cogerla, así que necesita un reintento manual o una decisión."
+msgstr[1] "%1$d piezas han agotado sus %2$d intentos: ningún barrido volverá a cogerlas, así que necesitan un reintento manual o una decisión."
+
+msgid "%d retired piece put back in the queue."
+msgid_plural "%d retired pieces put back in the queue."
+msgstr[0] "%d pieza retirada devuelta a la cola."
+msgstr[1] "%d piezas retiradas devueltas a la cola."
+
+msgid "Pieces retired before the plugin learned to re-mint expired Telegram links were given up on too early: their message is permanent and its embed page re-signs the media on every request. Requeueing them re-runs the whole recovery, which costs one fetch per message."
+msgstr "Las piezas retiradas antes de que el plugin aprendiera a regenerar los enlaces caducados de Telegram se dieron por perdidas demasiado pronto: su mensaje es permanente y su página incrustada vuelve a firmar los medios en cada petición. Devolverlas a la cola relanza toda la recuperación, al precio de una petición por mensaje."
+
+msgid "Requeue retired pieces"
+msgstr "Devolver a la cola las retiradas"
+
+msgid "Out of attempts"
+msgstr "Sin reintentos"
+
+msgid "Orphaned"
+msgstr "Huérfanas"
 
 msgid "Item"
 msgstr "Ítem"
@@ -680,8 +707,8 @@ msgstr "Ítem"
 msgid "Retired"
 msgstr "Retiradas"
 
-msgid "Source gone: the original link expired, so a retry cannot recover it."
-msgstr "Origen caducado: el enlace original ya no existe, así que reintentar no puede recuperarlo."
+msgid "Retired: the fresh Telegram page did not give this piece either."
+msgstr "Retirada: la página fresca de Telegram tampoco dio esta pieza."
 
 msgid "No longer part of the item: this row is history, not pending work."
 msgstr "Ya no forma parte de la noticia: esta fila es histórico, no trabajo pendiente."

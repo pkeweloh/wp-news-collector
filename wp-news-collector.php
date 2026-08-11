@@ -3,7 +3,7 @@
  * Plugin Name: News Collector
  * Plugin URI:  https://github.com/pkeweloh/wp-news-collector
  * Description: Aggregates RSS/RSSHub feeds (Telegram channels), scrapes OG metadata, uploads media to Catbox, and displays items via shortcode.
- * Version:     1.0.15
+ * Version:     1.0.16
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author:      Philipp Keweloh
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'NC_VERSION', '1.0.15' );
+define( 'NC_VERSION', '1.0.16' );
 define( 'NC_PLUGIN_FILE', __FILE__ );
 define( 'NC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'NC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -28,6 +28,7 @@ require_once NC_PLUGIN_DIR . 'includes/class-source-repository.php';
 require_once NC_PLUGIN_DIR . 'includes/class-item-repository.php';
 require_once NC_PLUGIN_DIR . 'includes/class-feed-parser.php';
 require_once NC_PLUGIN_DIR . 'includes/class-og-scraper.php';
+require_once NC_PLUGIN_DIR . 'includes/class-telegram-media.php';
 require_once NC_PLUGIN_DIR . 'includes/class-catbox-uploader.php';
 require_once NC_PLUGIN_DIR . 'includes/class-catbox-upload-repository.php';
 require_once NC_PLUGIN_DIR . 'includes/class-source-cover-repository.php';

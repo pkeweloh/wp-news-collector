@@ -119,10 +119,73 @@ class NC_Catbox_Upload_Repository {
 		);
 	}
 
-	public function count_failed(): int {
+	// Far-future so RETRYABLE_WHERE (next_retry_at <= now) excludes it from query + count.
+	private const ORPHAN_PARK_UNTIL = '2999-01-01 00:00:00';
+
+	/**
+	 * A failure somebody can still act on. Retired sources and parked orphans are
+	 * out: the four backlog buckets (pending, exhausted, retired, orphaned) must be
+	 * disjoint, or a button ends up offering to recover more than it can.
+	 */
+	private const LIVE_FAILED_WHERE = "error IS NOT NULL
+		AND ( catbox_url IS NULL OR catbox_url = '' )
+		AND source_gone = 0
+		AND ( next_retry_at IS NULL OR next_retry_at < '" . self::ORPHAN_PARK_UNTIL . "' )";
+
+	/** Under the attempt cap, so a sweep will still pick it up (0 = no cap). */
+	private const UNDER_CAP = '( %d <= 0 OR retry_count < %d )';
+
+	/** Failures still in the queue: not retired, not orphaned, not out of attempts. */
+	public function count_failed( int $max_attempts = 0 ): int {
 		global $wpdb;
+		$sql = 'SELECT COUNT(*) FROM ' . $this->uploads_table . ' WHERE ' . self::LIVE_FAILED_WHERE . ' AND ' . self::UNDER_CAP;
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$this->uploads_table} WHERE error IS NOT NULL" );
+		return (int) $wpdb->get_var( $wpdb->prepare( $sql, $max_attempts, $max_attempts ) );
+	}
+
+	/**
+	 * Failures that used up their attempts. Counted apart because no sweep will
+	 * ever pick them again: left under "pending" they would pin that number above
+	 * zero for good, and a number that never goes out teaches people to ignore it.
+	 */
+	public function count_exhausted( int $max_attempts ): int {
+		if ( $max_attempts <= 0 ) {
+			return 0;
+		}
+		global $wpdb;
+		$sql = 'SELECT COUNT(*) FROM ' . $this->uploads_table . ' WHERE ' . self::LIVE_FAILED_WHERE . ' AND NOT ' . self::UNDER_CAP;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( $sql, $max_attempts, $max_attempts ) );
+	}
+
+	/** Failed rows parked as orphans: history, not pending work. */
+	public function count_parked(): int {
+		global $wpdb;
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT COUNT(*) FROM {$this->uploads_table} WHERE next_retry_at = %s",
+				self::ORPHAN_PARK_UNTIL
+			)
+		);
+	}
+
+	/**
+	 * Attempts in a recent window whose error is the markup alarm: the bet on
+	 * reading t.me's HTML losing, which is loud because the media is still there
+	 * and we merely stopped finding it.
+	 */
+	public function count_markup_alarm( int $days = 7 ): int {
+		global $wpdb;
+		$since = gmdate( 'Y-m-d H:i:s', time() - max( 1, $days ) * DAY_IN_SECONDS );
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT COUNT(*) FROM {$this->attempts_table} WHERE attempted_at >= %s AND error LIKE %s",
+				$since,
+				$wpdb->esc_like( substr( NC_Telegram_Media::MARKUP_ALARM, 0, 40 ) ) . '%'
+			)
+		);
 	}
 
 	// $max_attempts <= 0 means no attempt cap. source_gone is filtered here and not
@@ -183,14 +246,55 @@ class NC_Catbox_Upload_Repository {
 		);
 	}
 
+	/**
+	 * Retired rows that could still be recovered, for the caller's linked filter.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_source_gone_rows(): array {
+		global $wpdb;
+		$rows = $wpdb->get_results(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			"SELECT id, item_guid, upload_type, original_url FROM {$this->uploads_table}
+			 WHERE source_gone = 1 AND ( catbox_url IS NULL OR catbox_url = '' )",
+			ARRAY_A
+		);
+		return is_array( $rows ) ? $rows : [];
+	}
+
+	/**
+	 * Clear the retirement and the backoff so the sweep picks these up again.
+	 *
+	 * @param int[] $ids
+	 * @return int Rows updated.
+	 */
+	public function requeue_uploads( array $ids ): int {
+		if ( empty( $ids ) ) {
+			return 0;
+		}
+		global $wpdb;
+		$ids     = array_values( array_unique( array_map( 'intval', $ids ) ) );
+		$updated = 0;
+		foreach ( array_chunk( $ids, 500 ) as $chunk ) {
+			$placeholders = implode( ',', array_fill( 0, count( $chunk ), '%d' ) );
+			$updated     += (int) $wpdb->query(
+				$wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"UPDATE {$this->uploads_table}
+					 SET source_gone = 0, retry_count = 0, next_retry_at = NULL
+					 WHERE id IN ({$placeholders})",
+					...$chunk
+				)
+			);
+		}
+		return $updated;
+	}
+
 	public function count_source_gone(): int {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$this->uploads_table} WHERE source_gone = 1" );
 	}
-
-	// Far-future so RETRYABLE_WHERE (next_retry_at <= now) excludes it from query + count.
-	private const ORPHAN_PARK_UNTIL = '2999-01-01 00:00:00';
 
 	/** Park an orphan so it stops hogging the NULL-first head of the retry queue. */
 	public function park_orphan( int $id ): void {
@@ -362,16 +466,21 @@ class NC_Catbox_Upload_Repository {
 	 *
 	 * @return array<string, mixed>
 	 */
-	public function get_page( int $page, int $page_size, string $filter = 'all' ): array {
+	public function get_page( int $page, int $page_size, string $filter = 'all', int $max_attempts = 0 ): array {
 		global $wpdb;
 		$page      = max( 1, $page );
 		$page_size = max( 1, min( 200, $page_size ) );
 		$offset    = ( $page - 1 ) * $page_size;
 		$where     = 'WHERE 1=1';
+		// The buckets mirror the chip counts, so a chip and its list always agree.
 		if ( 'unassigned' === $filter ) {
 			$where .= " AND album_id IS NULL AND catbox_url IS NOT NULL AND catbox_url != ''";
 		} elseif ( 'failed' === $filter ) {
-			$where .= ' AND error IS NOT NULL';
+			$where .= ' AND ' . self::LIVE_FAILED_WHERE . ' AND ' . $wpdb->prepare( self::UNDER_CAP, $max_attempts, $max_attempts );
+		} elseif ( 'exhausted' === $filter ) {
+			$where .= ' AND ' . self::LIVE_FAILED_WHERE . ' AND NOT ' . $wpdb->prepare( self::UNDER_CAP, $max_attempts, $max_attempts );
+		} elseif ( 'orphaned' === $filter ) {
+			$where .= $wpdb->prepare( ' AND next_retry_at = %s', self::ORPHAN_PARK_UNTIL );
 		} elseif ( 'gone' === $filter ) {
 			$where .= ' AND source_gone = 1';
 		}

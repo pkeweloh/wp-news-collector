@@ -413,6 +413,21 @@ class NC_Admin {
 		exit;
 	}
 
+	public function handle_catbox_requeue(): void {
+		$this->ensure_admin();
+		check_admin_referer( 'nc_catbox_requeue' );
+		// Only clears flags and counters, so it is safe to run synchronously; the
+		// uploads it frees are retried by the scheduled sweep.
+		$requeued = $this->syncer->requeue_expired_sources();
+		wp_safe_redirect(
+			add_query_arg(
+				[ 'page' => 'nc_catbox_uploads', 'nc_msg' => 'requeued', 'nc_n' => $requeued ],
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
 	public function handle_retry_catbox_upload(): void {
 		$this->ensure_admin();
 		check_admin_referer( 'nc_retry_upload' );

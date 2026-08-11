@@ -28,6 +28,13 @@ if ( ! function_exists( 'esc_html' ) ) { function esc_html( $t ) { return htmlsp
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return $u; } }
 
+// class-widget.php extends this at load time, so it must exist before the require.
+if ( ! class_exists( 'WP_Widget' ) ) {
+	class WP_Widget { // phpcs:ignore
+		public function __construct( ...$a ) {}
+	}
+}
+
 // Stand-in $wpdb so the repository constructors don't crash.
 class wpdb_stub {
 	public string $prefix = 'wp_';
@@ -43,7 +50,7 @@ echo "Loaded OK\n";
 $plugin_classes = [
 	'NC_Plugin', 'NC_Activator', 'NC_Source_Repository', 'NC_Item_Repository',
 	'NC_Feed_Parser', 'NC_OG_Scraper', 'NC_Catbox_Uploader', 'NC_Redirect_Resolver',
-	'NC_News_Processor', 'NC_Shortcode',
+	'NC_News_Processor', 'NC_Shortcode', 'NC_Telegram_Media',
 ];
 foreach ( $plugin_classes as $c ) {
 	if ( ! class_exists( $c ) ) {

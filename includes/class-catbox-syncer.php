@@ -15,11 +15,40 @@ class NC_Catbox_Syncer {
 
 	private const CATBOX_PREFIX = 'https://files.catbox.moe/';
 
+	// Well under the hours a signed telesco.pe link lives, so a cached read can
+	// never hand out a URL that expired during the sweep.
+	private const MEDIA_CACHE_SECONDS = 300;
+
+	/** @var array<string, array{0:int, 1:array<string, mixed>}> embed URL => [read at, media] */
+	private array $media_cache = [];
+
 	public function __construct(
 		private NC_Item_Repository $items,
 		private NC_Catbox_Upload_Repository $uploads,
 		private NC_Catbox_Uploader $catbox
 	) {}
+
+	/**
+	 * Read a message's embed page once per message, not once per piece: a message
+	 * with video carries two pieces (the video and its poster) and would otherwise
+	 * ask t.me for the very same page twice.
+	 *
+	 * @param array<string, mixed> $item
+	 * @return array<string, mixed>
+	 */
+	private function message_media( array $item ): array {
+		$url = NC_Telegram_Media::embed_url( $item );
+		if ( '' === $url ) {
+			return NC_Telegram_Media::fetch( $item );
+		}
+		$cached = $this->media_cache[ $url ] ?? null;
+		if ( null !== $cached && ( time() - $cached[0] ) < self::MEDIA_CACHE_SECONDS ) {
+			return $cached[1];
+		}
+		$media                    = NC_Telegram_Media::fetch( $item );
+		$this->media_cache[ $url ] = [ time(), $media ];
+		return $media;
+	}
 
 	/**
 	 * Run both sync phases. Saves result to option nc_catbox_sync_stats.
@@ -53,10 +82,17 @@ class NC_Catbox_Syncer {
 		$upload_type = (string) ( $row['upload_type'] ?? '' );
 		$original    = (string) ( $row['original_url'] ?? '' );
 		$item        = $this->items->get_by_guid( $guid ) ?? [];
-		$src_url     = $this->upload_source( $item, $upload_type, $original );
+		$source      = $this->upload_source( $item, $upload_type, $original );
+
+		if ( $source['markup_alarm'] ) {
+			// The stale URL would 404 and retire a recoverable piece under a false cause.
+			$this->uploads->set_result( $upload_id, null, NC_Telegram_Media::MARKUP_ALARM );
+			$this->uploads->log_attempt( $guid, $upload_type, $original, $trigger, NC_Catbox_Uploader::OUTCOME_DOWNLOAD_FAILED, NC_Telegram_Media::MARKUP_ALARM );
+			return [ 'ok' => false, 'error' => NC_Telegram_Media::MARKUP_ALARM, 'outcome' => NC_Catbox_Uploader::OUTCOME_DOWNLOAD_FAILED ];
+		}
 
 		try {
-			$new_url = $this->catbox->upload_from_url( $src_url );
+			$new_url = $this->catbox->upload_from_url( $source['url'] );
 		} catch ( NC_Catbox_Exception $e ) {
 			$this->uploads->set_result( $upload_id, null, $e->getMessage() );
 			$outcome = NC_Catbox_Uploader::outcome_of( $e );
@@ -91,6 +127,9 @@ class NC_Catbox_Syncer {
 	): array {
 		$stats = [ 'attempted' => 0, 'succeeded' => 0, 'failed' => 0, 'gone' => 0, 'orphaned' => 0, 'aborted' => false ];
 		$batch_size = max( 1, $batch_size );
+		// Each sweep re-reads the embed pages: a link signed on the previous run
+		// may already have expired.
+		$this->media_cache = [];
 
 		// Over-fetch: the linked filter runs in PHP, so orphans must not eat the batch.
 		$candidates  = $this->uploads->get_retryable_uploads( gmdate( 'Y-m-d H:i:s' ), $max_attempts, max( $batch_size * 5, 100 ) );
@@ -196,6 +235,33 @@ class NC_Catbox_Syncer {
 	}
 
 	/**
+	 * Put retired pieces back in the queue with their counters reset.
+	 *
+	 * `source_gone` was set when a dead link was the end of the story. Now that a
+	 * Telegram link is re-minted from the message's embed page, a piece is only
+	 * gone once the fresh page fails too. A button and not a migration: it re-runs
+	 * the whole recovery, which is a person's call. Only pieces still linked to a
+	 * live item come back; an orphan would just clog the queue again.
+	 *
+	 * @return int Rows requeued.
+	 */
+	public function requeue_expired_sources(): int {
+		$rows = $this->uploads->get_source_gone_rows();
+		if ( empty( $rows ) ) {
+			return 0;
+		}
+		$linked = $this->linked_map( $rows );
+		$ids    = [];
+		foreach ( $rows as $row ) {
+			$id = (int) ( $row['id'] ?? 0 );
+			if ( ! empty( $linked[ $id ] ) ) {
+				$ids[] = $id;
+			}
+		}
+		return $this->uploads->requeue_uploads( $ids );
+	}
+
+	/**
 	 * Which upload rows are still linked to a live piece, keyed by upload id.
 	 * Grouped by guid so it costs one item fetch per distinct item.
 	 *
@@ -259,9 +325,14 @@ class NC_Catbox_Syncer {
 
 		$results = [];
 		foreach ( $this->pending_pieces( $item ) as [ $upload_type, $original ] ) {
-			$src_url = $this->upload_source( $item, $upload_type, $original );
+			$src = $this->upload_source( $item, $upload_type, $original );
+			if ( $src['markup_alarm'] ) {
+				$this->uploads->log_attempt( $guid, $upload_type, $original, 'manual', NC_Catbox_Uploader::OUTCOME_DOWNLOAD_FAILED, NC_Telegram_Media::MARKUP_ALARM );
+				$results[] = [ 'type' => $upload_type, 'error' => NC_Telegram_Media::MARKUP_ALARM ];
+				continue;
+			}
 			try {
-				$new_url = $this->catbox->upload_from_url( $src_url );
+				$new_url = $this->catbox->upload_from_url( $src['url'] );
 			} catch ( NC_Catbox_Exception $e ) {
 				$this->uploads->resolve_result( $source, $source_name, $guid, $upload_type, $original, null, $e->getMessage() );
 				$this->uploads->log_attempt( $guid, $upload_type, $original, 'manual', NC_Catbox_Uploader::outcome_of( $e ), $e->getMessage() );
@@ -313,30 +384,45 @@ class NC_Catbox_Syncer {
 		return $album_id;
 	}
 
-	// For an article cover, re-derive from the live og:image (stored URL may
-	// have expired), then fall back to a YouTube thumbnail.
-	/** @param array<string, mixed> $item */
-	private function upload_source( array $item, string $upload_type, string $original_url ): string {
+	/**
+	 * Where to fetch a piece from now, re-derived rather than trusted: an article
+	 * cover moves and a Telegram link expires in hours, so the stored URL is
+	 * usually dead. `markup_alarm` means the embed showed the message but gave up
+	 * no media: a broken parser, not a piece to retry.
+	 *
+	 * @param array<string, mixed> $item
+	 * @return array{url:string, markup_alarm:bool}
+	 */
+	private function upload_source( array $item, string $upload_type, string $original_url ): array {
 		if ( 'article_image' === $upload_type ) {
 			$article = is_array( $item['article'] ?? null ) ? $item['article'] : [];
 			$url     = (string) ( $article['url'] ?? '' );
 			if ( '' !== $url ) {
 				$fresh = NC_OG_Scraper::fetch( $url )['image'];
 				if ( '' !== $fresh ) {
-					return $fresh;
+					return [ 'url' => $fresh, 'markup_alarm' => false ];
 				}
 				// og failed (e.g. YouTube consent page): derive from the video id.
 				$yt = NC_Feed_Parser::extract_youtube_id( $url );
 				if ( '' !== $yt ) {
-					return NC_OG_Scraper::youtube_thumbnail( $yt );
+					return [ 'url' => NC_OG_Scraper::youtube_thumbnail( $yt ), 'markup_alarm' => false ];
 				}
 			}
 			$ids = (array) ( $item['youtube_ids'] ?? [] );
 			if ( ! empty( $ids ) ) {
-				return NC_OG_Scraper::youtube_thumbnail( (string) $ids[0] );
+				return [ 'url' => NC_OG_Scraper::youtube_thumbnail( (string) $ids[0] ), 'markup_alarm' => false ];
+			}
+		} elseif ( in_array( $upload_type, [ 'image', 'poster', 'video' ], true ) ) {
+			$media = $this->message_media( $item );
+			$fresh = NC_Telegram_Media::fresh_url_for( $item, $upload_type, $original_url, $media );
+			if ( '' !== $fresh ) {
+				return [ 'url' => $fresh, 'markup_alarm' => false ];
+			}
+			if ( NC_Telegram_Media::markup_suspect( $media ) ) {
+				return [ 'url' => $original_url, 'markup_alarm' => true ];
 			}
 		}
-		return $original_url;
+		return [ 'url' => $original_url, 'markup_alarm' => false ];
 	}
 
 	/**

@@ -192,16 +192,23 @@ class NC_Catbox_Uploader {
 		}
 
 		$expected = strlen( $content );
-		if ( $this->stored_ok( $url, $expected ) ) {
+		if ( $this->stored_ok( $url, $expected )[0] ) {
 			return $url;
 		}
 		$this->delete_quietly( $url );
-		$url = $this->send_upload( $boundary, $body );
-		if ( $this->stored_ok( $url, $expected ) ) {
+		$url             = $this->send_upload( $boundary, $body );
+		[ $ok, $served ] = $this->stored_ok( $url, $expected );
+		if ( $ok ) {
 			return $url;
 		}
-		$this->delete_quietly( $url );
-		throw new NC_Catbox_Exception( 'Upload verification failed: stored file does not match the ' . $expected . ' bytes sent' );
+		// A truncated store and a dedup hit onto a copy we cannot delete look
+		// identical from a byte count alone, and only the second is hopeless to
+		// retry, so the message carries what Catbox served and what it said to the
+		// delete.
+		$deleted = $this->delete_quietly( $url );
+		throw new NC_Catbox_Exception(
+			'Upload verification failed: sent ' . $expected . ' bytes, ' . $url . ' ' . $served . '; delete said ' . $deleted
+		);
 	}
 
 	private function build_upload_body( string $boundary, string $filename, string $mime, string $content ): string {
@@ -237,14 +244,17 @@ class NC_Catbox_Uploader {
 	}
 
 	/**
-	 * Whether Catbox serves a file of the expected size (false = heal it).
+	 * Whether Catbox serves a file of the expected size (false = heal it), plus
+	 * what it served in words, which is what makes a failure diagnosable.
 	 *
 	 * Catbox answers HEAD with Content-Length: 0 even for healthy files, so the
 	 * size is read with a ranged GET (bytes=0-0 avoids fetching a whole video).
+	 *
+	 * @return array{0:bool, 1:string}
 	 */
-	private function stored_ok( string $url, int $expected_len ): bool {
+	private function stored_ok( string $url, int $expected_len ): array {
 		if ( 0 !== strpos( $url, self::FILE_PREFIX ) ) {
-			return true;
+			return [ true, 'is not a CDN URL, unverifiable' ];
 		}
 		$response = wp_remote_get(
 			$url,
@@ -257,49 +267,53 @@ class NC_Catbox_Uploader {
 			]
 		);
 		if ( is_wp_error( $response ) ) {
-			return false;
+			// Treat as corrupt: a file we cannot read is not a file we stored.
+			return [ false, 'is not retrievable (' . $response->get_error_message() . ')' ];
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 ) {
-			return false;
+			return [ false, 'answers HTTP ' . $code ];
 		}
 		$range = (string) wp_remote_retrieve_header( $response, 'content-range' );
 		if ( 1 === preg_match( '~/(\d+)\s*$~', $range, $m ) ) {
-			return (int) $m[1] === $expected_len;
+			return [ (int) $m[1] === $expected_len, 'serves ' . (int) $m[1] . ' bytes' ];
 		}
 		$length = wp_remote_retrieve_header( $response, 'content-length' );
 		if ( '' === $length || null === $length ) {
-			return true;
+			// Don't risk deleting a good file over a missing header.
+			return [ true, 'served without a length' ];
 		}
-		return (int) $length === $expected_len;
+		return [ (int) $length === $expected_len, 'serves ' . (int) $length . ' bytes' ];
 	}
 
-	/** Best-effort delete of a Catbox file by URL; ignores API errors. */
-	private function delete_quietly( string $url ): void {
+	/** Best-effort delete of a Catbox file by URL; returns what it answered. */
+	private function delete_quietly( string $url ): string {
 		if ( 0 !== strpos( $url, self::FILE_PREFIX ) ) {
-			return;
+			return 'nothing to delete';
 		}
 		try {
-			$this->delete_files( [ basename( $url ) ] );
+			$answer = $this->delete_files( [ basename( $url ) ] );
 		} catch ( NC_Catbox_Exception $e ) {
-			unset( $e );
+			return $e->getMessage();
 		}
+		return '' === $answer ? '(nothing)' : $answer;
 	}
 
 	/**
 	 * Delete files from the account by bare filename (e.g. 'abc123.jpg'), not
-	 * full URL. Requires userhash.
+	 * full URL. Requires userhash. Returns what Catbox answered, which is the only
+	 * way to tell a real deletion from a refusal on a file that is not ours.
 	 *
 	 * @param string[] $filenames
 	 * @throws NC_Catbox_Exception
 	 */
-	public function delete_files( array $filenames ): void {
+	public function delete_files( array $filenames ): string {
 		if ( '' === $this->userhash ) {
 			throw new NC_Catbox_Exception( 'User hash required to delete files' );
 		}
 		$filenames = array_values( array_filter( $filenames, static fn( $f ) => '' !== (string) $f ) );
 		if ( empty( $filenames ) ) {
-			return;
+			return '';
 		}
 		$boundary  = 'CatboxBoundary' . wp_generate_password( 12, false );
 		$files_str = implode( ' ', $filenames );
@@ -319,6 +333,7 @@ class NC_Catbox_Uploader {
 		if ( is_wp_error( $response ) ) {
 			throw new NC_Catbox_Exception( 'Delete failed: ' . $response->get_error_message() );
 		}
+		return trim( (string) wp_remote_retrieve_body( $response ) );
 	}
 
 	/**
