@@ -16,32 +16,29 @@ class NC_Item_Repository {
 		$this->table = $wpdb->prefix . 'nc_items';
 	}
 
-	public function exists( string $guid ): bool {
-		global $wpdb;
-		$row = $wpdb->get_var(
-			$wpdb->prepare( "SELECT 1 FROM {$this->table} WHERE guid = %s LIMIT 1", $guid )
-		);
-		return null !== $row;
-	}
-
 	/**
-	 * Whether a Telegram post already exists for this source. RSSHub re-emits the
-	 * same post under different guids (t.me/c/123 vs t.me/s/c/123 vs ...?single),
-	 * so guid alone lets duplicates through; (source, telegram_id) is stable.
+	 * The stored row for a Telegram post, or null. RSSHub re-emits the same post
+	 * under different guids (t.me/c/123 vs t.me/s/c/123 vs ...?single), so guid
+	 * alone lets duplicates through; (source, telegram_id) is stable. The whole
+	 * row comes back, not just a flag: ingest needs the stored content to tell an
+	 * edited post from an unchanged one.
+	 *
+	 * @return array<string, mixed>|null
 	 */
-	public function exists_by_telegram( string $source, int $telegram_id ): bool {
+	public function find_by_telegram( string $source, int $telegram_id ): ?array {
 		if ( '' === $source || $telegram_id <= 0 ) {
-			return false;
+			return null;
 		}
 		global $wpdb;
-		$row = $wpdb->get_var(
+		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT 1 FROM {$this->table} WHERE source = %s AND telegram_id = %d LIMIT 1",
+				"SELECT * FROM {$this->table} WHERE source = %s AND telegram_id = %d LIMIT 1",
 				$source,
 				$telegram_id
-			)
+			),
+			ARRAY_A
 		);
-		return null !== $row;
+		return is_array( $row ) ? $this->decode_row( $row ) : null;
 	}
 
 	/**
@@ -68,14 +65,15 @@ class NC_Item_Repository {
 			'youtube_ids'     => wp_json_encode( $item['youtube_ids'] ?? [] ),
 			'article'         => $article ? wp_json_encode( $article ) : null,
 			'enabled'         => 1,
+			'content_hash'    => (string) ( $item['content_hash'] ?? '' ),
 			'published_at'    => (string) ( $item['published_at'] ?? gmdate( 'Y-m-d H:i:s' ) ),
 			'fetched_at'      => (string) ( $item['fetched_at'] ?? gmdate( 'Y-m-d H:i:s' ) ),
 		];
 
 		// $wpdb->insert doesn't support INSERT IGNORE; use a prepared query.
 		$sql = "INSERT IGNORE INTO {$this->table}
-			(guid, telegram_id, source, source_name, raw_description, text, images, videos, audios, youtube_ids, article, enabled, published_at, fetched_at)
-			VALUES (%s, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s, %s)";
+			(guid, telegram_id, source, source_name, raw_description, text, images, videos, audios, youtube_ids, article, enabled, content_hash, published_at, fetched_at)
+			VALUES (%s, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s, %s, %s)";
 
 		$result = $wpdb->query(
 			$wpdb->prepare(
@@ -92,6 +90,7 @@ class NC_Item_Repository {
 				$data['youtube_ids'],
 				null === $data['article'] ? '' : $data['article'],
 				$data['enabled'],
+				$data['content_hash'],
 				$data['published_at'],
 				$data['fetched_at']
 			)
@@ -386,6 +385,57 @@ class NC_Item_Repository {
 		$rows = $wpdb->update(
 			$this->table,
 			[ 'text' => $text ],
+			[ 'id' => $id ],
+			[ '%s' ],
+			[ '%d' ]
+		);
+		return false !== $rows;
+	}
+
+	/**
+	 * Overwrite a stored post with an edited version of itself.
+	 *
+	 * published_at is deliberately left alone: a Telegram edit keeps the original
+	 * post date, and rewriting it would make the item jump around the feed. So is
+	 * `enabled`, so an edit cannot resurrect an item an admin hid.
+	 *
+	 * @param array<string, mixed> $item       Parsed (and, when $with_media, enriched) item.
+	 * @param bool                 $with_media Whether media columns are part of the edit.
+	 */
+	public function update_edited( int $id, array $item, string $content_hash, bool $with_media ): bool {
+		global $wpdb;
+		$data = [
+			'raw_description' => (string) ( $item['raw_description'] ?? '' ),
+			'text'            => (string) ( $item['text'] ?? '' ),
+			'youtube_ids'     => wp_json_encode( $item['youtube_ids'] ?? [] ),
+			'content_hash'    => $content_hash,
+			'fetched_at'      => gmdate( 'Y-m-d H:i:s' ),
+			'updated_at'      => gmdate( 'Y-m-d H:i:s' ),
+		];
+		$formats = [ '%s', '%s', '%s', '%s', '%s', '%s' ];
+
+		if ( $with_media ) {
+			$article           = is_array( $item['article'] ?? null ) ? $item['article'] : null;
+			$data['images']    = wp_json_encode( $item['images'] ?? [] );
+			$data['videos']    = wp_json_encode( $item['videos'] ?? [] );
+			$data['audios']    = wp_json_encode( $item['audios'] ?? [] );
+			$data['article']   = null === $article ? null : wp_json_encode( $article );
+			array_push( $formats, '%s', '%s', '%s', '%s' );
+		}
+
+		$rows = $wpdb->update( $this->table, $data, [ 'id' => $id ], $formats, [ '%d' ] );
+		return false !== $rows;
+	}
+
+	/**
+	 * Adopt the current feed content as the baseline for an item stored before
+	 * hashes existed, so it is not mistaken for an edit on the next cycle.
+	 */
+	public function set_content_hash( int $id, string $content_hash ): bool {
+		global $wpdb;
+		$rows = $wpdb->update(
+			$this->table,
+			[ 'content_hash' => $content_hash ],
 			[ 'id' => $id ],
 			[ '%s' ],
 			[ '%d' ]

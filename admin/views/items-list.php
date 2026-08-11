@@ -34,11 +34,12 @@ $filters = [
 		<div class="notice notice-<?php echo empty( $lr_errors ) ? 'info' : 'warning'; ?> inline" style="margin:1rem 0">
 			<p style="margin:.5em 0"><?php
 				echo esc_html( sprintf(
-					/* translators: 1: date, 2: fetched, 3: new, 4: skipped */
-					__( 'Last fetch %1$s: %2$d items fetched, %3$d new, %4$d skipped.', 'wp-news-collector' ),
+					/* translators: 1: date, 2: fetched, 3: new, 4: edited, 5: skipped */
+					__( 'Last fetch %1$s: %2$d items fetched, %3$d new, %4$d edited, %5$d skipped.', 'wp-news-collector' ),
 					get_date_from_gmt( (string) ( $last_run['at'] ?? '' ), 'Y-m-d H:i' ),
 					(int) ( $last_run['fetched'] ?? 0 ),
 					(int) ( $last_run['inserted'] ?? 0 ),
+					(int) ( $last_run['updated'] ?? 0 ),
 					(int) ( $last_run['skipped'] ?? 0 )
 				) );
 			?></p>

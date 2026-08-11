@@ -204,8 +204,8 @@ msgstr "Slug del enlace permanente"
 msgid "Items"
 msgstr "Ítems"
 
-msgid "Last fetch %1$s: %2$d items fetched, %3$d new, %4$d skipped."
-msgstr "Última descarga %1$s: %2$d ítems obtenidos, %3$d nuevos, %4$d omitidos."
+msgid "Last fetch %1$s: %2$d items fetched, %3$d new, %4$d edited, %5$d skipped."
+msgstr "Última descarga %1$s: %2$d ítems obtenidos, %3$d nuevos, %4$d editados, %5$d omitidos."
 
 msgid "Last sync: %1$s: %2$d tracked, %3$d assigned to album."
 msgstr "Último sync: %1$s: %2$d rastreados, %3$d asignados a álbum."

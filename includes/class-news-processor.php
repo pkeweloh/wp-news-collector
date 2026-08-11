@@ -38,10 +38,10 @@ class NC_News_Processor {
 	}
 
 	/**
-	 * @return array{fetched:int, inserted:int, skipped:int, errors:string[]}
+	 * @return array{fetched:int, inserted:int, updated:int, skipped:int, errors:string[]}
 	 */
 	public function run_cycle(): array {
-		$stats    = [ 'fetched' => 0, 'inserted' => 0, 'skipped' => 0, 'errors' => [] ];
+		$stats    = [ 'fetched' => 0, 'inserted' => 0, 'updated' => 0, 'skipped' => 0, 'errors' => [] ];
 		$this->cover_cache = null; // Refresh known covers for this cycle.
 		$album_id = '';
 		if ( ! empty( $this->settings['catbox_enabled'] ) && $this->uploads ) {
@@ -59,7 +59,7 @@ class NC_News_Processor {
 	 * value, so without this a fetch failure (e.g. an RSSHub 503 for a channel
 	 * with no public preview) would never surface anywhere the admin can see.
 	 *
-	 * @param array{fetched:int, inserted:int, skipped:int, errors:string[]} $stats
+	 * @param array{fetched:int, inserted:int, updated:int, skipped:int, errors:string[]} $stats
 	 */
 	private function save_last_run( array $stats ): void {
 		update_option(
@@ -68,6 +68,7 @@ class NC_News_Processor {
 				'at'       => gmdate( 'Y-m-d H:i:s' ),
 				'fetched'  => $stats['fetched'],
 				'inserted' => $stats['inserted'],
+				'updated'  => (int) ( $stats['updated'] ?? 0 ),
 				'skipped'  => $stats['skipped'],
 				'errors'   => array_slice( array_values( $stats['errors'] ), 0, 50 ),
 			],
@@ -78,7 +79,7 @@ class NC_News_Processor {
 	/**
 	 * Get or create the album for the current month. Returns the album short code or ''.
 	 *
-	 * @param array{fetched:int, inserted:int, skipped:int, errors:string[]} $stats
+	 * @param array{fetched:int, inserted:int, updated:int, skipped:int, errors:string[]} $stats
 	 */
 	private function get_or_create_current_album( array &$stats ): string {
 		if ( ! $this->uploads ) {
@@ -118,7 +119,7 @@ class NC_News_Processor {
 	}
 
 	/**
-	 * @param array{fetched:int, inserted:int, skipped:int, errors:string[]} $stats
+	 * @param array{fetched:int, inserted:int, updated:int, skipped:int, errors:string[]} $stats
 	 */
 	private function run_for_source( string $rss_url, string $name, array &$stats, string $album_id = '' ): void {
 		$response = wp_remote_get( $rss_url, [ 'timeout' => self::FETCH_TIMEOUT ] );
@@ -149,12 +150,17 @@ class NC_News_Processor {
 			$item['source_name'] = $display_name;
 
 			$telegram_id = (int) ( $item['telegram_id'] ?? 0 );
-			if ( $this->items->exists( (string) $item['guid'] )
-				|| $this->items->exists_by_telegram( $source, $telegram_id ) ) {
-				$stats['skipped']++;
+			$existing    = $this->items->find_by_telegram( $source, $telegram_id );
+			if ( null === $existing ) {
+				$existing = $this->items->get_by_guid( (string) $item['guid'] );
+			}
+			if ( null !== $existing ) {
+				// A repeat of a post we already have: an edit if the content moved, noise otherwise.
+				$this->apply_edit( $existing, $item, $stats, $album_id );
 				continue;
 			}
 
+			$item['content_hash'] = self::content_hash( $item );
 			$item = $this->enrich_item( $item, $stats );
 			$this->items->insert( $item );
 			$stats['inserted']++;
@@ -172,10 +178,95 @@ class NC_News_Processor {
 	}
 
 	/**
+	 * Fingerprint of everything a Telegram edit can change, computed on the parsed
+	 * item before enrichment: enrichment rewrites media URLs (Catbox), article URLs
+	 * (redirect resolution) and drops channel covers, so only a pre-enrichment
+	 * fingerprint can be compared with the next cycle's parse.
+	 *
+	 * Two halves joined by ':' so the caller can tell a pure text edit (cheap
+	 * update) from one that also touched media (needs the full enrichment again).
+	 * Media URLs themselves are excluded: telesco.pe links are signed and rotate
+	 * on every fetch, so only the shape of the media set is comparable. The
+	 * article block rides with the media half because a change there means the OG
+	 * scrape and cover upload must run again.
+	 *
+	 * @param array<string, mixed> $item Parsed item, as produced by NC_Feed_Parser.
+	 */
+	public static function content_hash( array $item ): string {
+		$article = is_array( $item['article'] ?? null ) ? $item['article'] : [];
+
+		$text = [
+			trim( (string) preg_replace( '~\s+~u', ' ', (string) ( $item['text'] ?? '' ) ) ),
+			array_values( (array) ( $item['youtube_ids'] ?? [] ) ),
+		];
+		$media = [
+			count( (array) ( $item['images'] ?? [] ) ),
+			count( (array) ( $item['videos'] ?? [] ) ),
+			count( (array) ( $item['audios'] ?? [] ) ),
+			(string) ( $article['url'] ?? '' ),
+			(string) ( $article['title'] ?? '' ),
+			(string) ( $article['text'] ?? '' ),
+		];
+
+		return sha1( (string) wp_json_encode( $text ) ) . ':' . sha1( (string) wp_json_encode( $media ) );
+	}
+
+	/** Media half of a content hash; '' when the hash is empty or malformed. */
+	private static function media_half( string $hash ): string {
+		$pos = strpos( $hash, ':' );
+		return false === $pos ? '' : substr( $hash, $pos + 1 );
+	}
+
+	/**
+	 * Handle a feed item we already have. Channels like the ALDI one publish first
+	 * and edit afterwards, so a repeat is either a real edit (update in place, no
+	 * second row) or the same content coming round again (discard, as before).
+	 *
+	 * @param array<string, mixed> $existing Stored row.
+	 * @param array<string, mixed> $item     Freshly parsed item.
+	 * @param array{fetched:int, inserted:int, updated:int, skipped:int, errors:string[]} $stats
+	 */
+	private function apply_edit( array $existing, array $item, array &$stats, string $album_id = '' ): void {
+		$id       = (int) ( $existing['id'] ?? 0 );
+		$incoming = self::content_hash( $item );
+		$stored   = (string) ( $existing['content_hash'] ?? '' );
+
+		if ( '' === $stored ) {
+			// Stored before hashes existed: adopt the current content as the baseline,
+			// otherwise the first cycle after the upgrade would rewrite the archive.
+			if ( $id > 0 ) {
+				$this->items->set_content_hash( $id, $incoming );
+			}
+			$stats['skipped']++;
+			return;
+		}
+
+		if ( $id <= 0 || $stored === $incoming ) {
+			$stats['skipped']++;
+			return;
+		}
+
+		// Text-only edits keep the stored media untouched: it already lives on
+		// Catbox with covers stripped, and re-uploading would burn a full fetch
+		// of every image and video to end up at the same files.
+		$with_media = self::media_half( $stored ) !== self::media_half( $incoming );
+		if ( $with_media ) {
+			$item = $this->enrich_item( $item, $stats );
+		}
+
+		$this->items->update_edited( $id, $item, $incoming, $with_media );
+		$stats['updated']++;
+
+		if ( $with_media && '' !== $album_id && $this->uploads ) {
+			$this->assign_item_to_album( $item, $album_id, $stats );
+		}
+	}
+
+	/**
 	 * Apply OG scrape, Catbox upload, redirect resolution.
 	 *
 	 * @param array<string, mixed> $item
-	 * @param array{fetched:int, inserted:int, skipped:int, errors:string[]} $stats
+	 * @param array{fetched:int, inserted:int, updated:int, skipped:int, errors:string[]} $stats
 	 * @return array<string, mixed>
 	 */
 	private function enrich_item( array $item, array &$stats ): array {
@@ -281,7 +372,7 @@ class NC_News_Processor {
 	 * Collect catbox URLs from an enriched item and add them to the monthly album.
 	 *
 	 * @param array<string, mixed> $item
-	 * @param array{fetched:int, inserted:int, skipped:int, errors:string[]} $stats
+	 * @param array{fetched:int, inserted:int, updated:int, skipped:int, errors:string[]} $stats
 	 */
 	private function assign_item_to_album( array $item, string $album_id, array &$stats ): void {
 		$catbox_urls = [];
@@ -614,7 +705,7 @@ class NC_News_Processor {
 	}
 
 	/**
-	 * @param array{fetched:int, inserted:int, skipped:int, errors:string[]} $stats
+	 * @param array{fetched:int, inserted:int, updated:int, skipped:int, errors:string[]} $stats
 	 */
 	/** @param array<string, mixed> $item */
 	private function youtube_cover( array $item ): string {
