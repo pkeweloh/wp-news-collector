@@ -296,6 +296,145 @@ class NC_Catbox_Upload_Repository {
 		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$this->uploads_table} WHERE source_gone = 1" );
 	}
 
+	/**
+	 * Close log rows for pieces that ended up on Catbox by another route.
+	 *
+	 * An admin edit, a re-ingest that rewrites media, anything going through
+	 * update_media() writes the item without touching this table, so the row keeps
+	 * saying "broken" while the piece is fine. The item no longer needs uploading,
+	 * so is_piece_linked() reads it as an orphan and the sweep parks a piece that
+	 * is perfectly stored. Copying the URL the item already holds says what
+	 * happened (resolved) instead of what parking it says (never needed).
+	 *
+	 * Videos and audios only: those keep original_url beside catbox_url, so the row
+	 * can be matched back. An image or a poster loses its original on repair and is
+	 * then indistinguishable from media somebody removed, which is cleanup_orphans'
+	 * job.
+	 *
+	 * @return int Rows closed.
+	 */
+	public function reconcile_resolved_uploads(): int {
+		$pairs = [];
+		foreach ( [ 'video' => 'videos', 'audio' => 'audios' ] as $upload_type => $column ) {
+			if ( 'audios' === $column && ! $this->items_column_exists( 'audios' ) ) {
+				continue;
+			}
+			foreach ( $this->resolved_pairs( $upload_type, $column ) as $id => $url ) {
+				$pairs[ $id ] = $url;
+			}
+		}
+		if ( empty( $pairs ) ) {
+			return 0;
+		}
+
+		// uk_catbox_url is on catbox_url, so a URL another row already claims cannot
+		// be written here. That other row is the same upload logged by the path that
+		// repaired it, which makes this one a duplicate with nothing left to say.
+		$owners  = $this->catbox_url_owners( array_values( $pairs ) );
+		$closed  = 0;
+		$dupes   = [];
+		global $wpdb;
+		foreach ( $pairs as $id => $url ) {
+			$owner = $owners[ $url ] ?? 0;
+			if ( $owner > 0 && $owner !== $id ) {
+				$dupes[] = $id;
+				continue;
+			}
+			$wpdb->update(
+				$this->uploads_table,
+				[ 'catbox_url' => $url, 'error' => null, 'next_retry_at' => null ],
+				[ 'id' => $id ],
+				[ '%s', '%s', '%s' ],
+				[ '%d' ]
+			);
+			$closed++;
+		}
+		return $closed + $this->delete_by_ids( $dupes );
+	}
+
+	/**
+	 * Compare two URL expressions across a JSON_TABLE boundary. Its columns carry
+	 * the server's default collation, which need not be the tables', and MariaDB
+	 * refuses to compare two implicit collations. Binary is also the right rule
+	 * here: a Catbox filename differing only in case is a different file.
+	 */
+	private static function url_eq( string $left, string $right ): string {
+		return 'CONVERT(' . $left . ' USING utf8mb4) COLLATE utf8mb4_bin'
+			. ' = CONVERT(' . $right . ' USING utf8mb4) COLLATE utf8mb4_bin';
+	}
+
+	/**
+	 * Broken rows whose item already holds a Catbox URL for the same original.
+	 *
+	 * @return array<int, string> upload id => catbox URL
+	 */
+	private function resolved_pairs( string $upload_type, string $column ): array {
+		global $wpdb;
+		// Literals only ($upload_type and $column come from a fixed map), and the
+		// LIKE pattern would need escaping under prepare(), so the SQL is built here.
+		$sql = "SELECT u.id AS id, m.catbox_url AS catbox_url
+			FROM {$this->uploads_table} u
+			JOIN {$this->items_table} i ON i.guid = u.item_guid
+			JOIN JSON_TABLE(
+				CASE WHEN JSON_VALID(i.{$column}) THEN i.{$column} ELSE '[]' END,
+				'$[*]' COLUMNS (
+					original_url VARCHAR(500) PATH '$.original_url',
+					catbox_url   VARCHAR(500) PATH '$.catbox_url'
+				)
+			) m ON " . self::url_eq( 'm.original_url', 'u.original_url' ) . "
+			WHERE u.upload_type = '" . $upload_type . "'
+			  AND ( u.catbox_url IS NULL OR u.catbox_url = '' )
+			  AND u.error IS NOT NULL
+			  AND m.catbox_url LIKE 'https://files.catbox.moe/%'";
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( $sql, ARRAY_A );
+		$out  = [];
+		foreach ( (array) $rows as $row ) {
+			$out[ (int) $row['id'] ] = (string) $row['catbox_url'];
+		}
+		return $out;
+	}
+
+	/**
+	 * Which of these Catbox URLs are already claimed, and by which row.
+	 *
+	 * @param string[] $urls
+	 * @return array<string, int> catbox URL => upload id
+	 */
+	private function catbox_url_owners( array $urls ): array {
+		$urls = array_values( array_unique( $urls ) );
+		if ( empty( $urls ) ) {
+			return [];
+		}
+		global $wpdb;
+		$owners = [];
+		foreach ( array_chunk( $urls, 200 ) as $chunk ) {
+			$placeholders = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
+			$rows         = $wpdb->get_results(
+				$wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT id, catbox_url FROM {$this->uploads_table} WHERE catbox_url IN ({$placeholders})",
+					...$chunk
+				),
+				ARRAY_A
+			);
+			foreach ( (array) $rows as $row ) {
+				$owners[ (string) $row['catbox_url'] ] = (int) $row['id'];
+			}
+		}
+		return $owners;
+	}
+
+	/** The audios column landed later, so an install that never reactivated lacks it. */
+	private function items_column_exists( string $col ): bool {
+		global $wpdb;
+		$found = $wpdb->get_var(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare( "SHOW COLUMNS FROM {$this->items_table} LIKE %s", $col )
+		);
+		return null !== $found;
+	}
+
 	/** Park an orphan so it stops hogging the NULL-first head of the retry queue. */
 	public function park_orphan( int $id ): void {
 		global $wpdb;

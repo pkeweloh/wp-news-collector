@@ -304,6 +304,10 @@ class NC_News_Processor {
 
 		// 3) Catbox uploads
 		if ( ! empty( $this->settings['catbox_enabled'] ) ) {
+			// A photo that is also a video's poster would paint the same frame twice.
+			// Dropping it here saves an upload whenever the originals already match.
+			$item['images'] = NC_Item_Repository::strip_poster_images( (array) $item['images'], (array) $item['videos'] );
+
 			$uploaded_images = [];
 			foreach ( (array) $item['images'] as $img_url ) {
 				$catbox_url        = $this->try_upload( (string) $img_url, $stats, $source, $source_name, $guid, 'image' );
@@ -332,6 +336,11 @@ class NC_News_Processor {
 				$updated_videos[] = $video;
 			}
 			$item['videos'] = $updated_videos;
+
+			// Again, now on the resolved URLs: Catbox answers with the same file for
+			// identical bytes, so a photo and the video thumbnail of the same frame
+			// arrive as one URL and the pass above cannot see it coming.
+			$item['images'] = NC_Item_Repository::strip_poster_images( (array) $item['images'], (array) $item['videos'] );
 
 			$updated_audios = [];
 			foreach ( (array) ( $item['audios'] ?? [] ) as $audio ) {

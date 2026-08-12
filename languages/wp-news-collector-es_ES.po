@@ -384,8 +384,8 @@ msgstr "¿Resubir toda la media de ítems existentes que no esté en Catbox?"
 msgid "Title:"
 msgstr "Título:"
 
-msgid "Too big"
-msgstr "Demasiado grande"
+msgid "Rejected"
+msgstr "Rechazadas"
 
 msgid "Total uploads"
 msgstr "Total de subidas"
@@ -717,3 +717,6 @@ msgid "%d retired (source gone)."
 msgid_plural "%d retired (sources gone)."
 msgstr[0] "%d retirada (origen caducado)."
 msgstr[1] "%d retiradas (origen caducado)."
+
+msgid "%1$d already resolved, %2$d duplicate posters removed."
+msgstr "%1$d ya resueltas, %2$d pósters duplicados eliminados."

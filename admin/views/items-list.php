@@ -19,9 +19,12 @@
 
 defined( 'ABSPATH' ) || exit;
 
+// The 'too_big' key is the status Telegram's own wording produced, but the cause
+// is not size: Telegram decides not to serve that media over the web at all, and
+// there is no URL to weigh. Shown as "rejected" so it does not read as pending work.
 $filters = [
 	'all'           => __( 'All', 'wp-news-collector' ),
-	'too_big'       => __( 'Too big', 'wp-news-collector' ),
+	'too_big'       => __( 'Rejected', 'wp-news-collector' ),
 	'upload_failed' => __( 'Upload failed', 'wp-news-collector' ),
 	'hidden'        => __( 'Hidden', 'wp-news-collector' ),
 ];

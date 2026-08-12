@@ -128,6 +128,19 @@ $msg_map = [
 					?>
 				</span>
 			<?php endif; ?>
+			<?php if ( (int) ( $retry_stats['reconciled'] ?? 0 ) > 0 || (int) ( $retry_stats['deduped'] ?? 0 ) > 0 ) : ?>
+				<span class="description">
+					&middot;
+					<?php
+					printf(
+						// translators: 1: log rows closed because the piece was already on Catbox, 2: items whose duplicated poster image was removed
+						esc_html__( '%1$d already resolved, %2$d duplicate posters removed.', 'wp-news-collector' ),
+						(int) ( $retry_stats['reconciled'] ?? 0 ),
+						(int) ( $retry_stats['deduped'] ?? 0 )
+					);
+					?>
+				</span>
+			<?php endif; ?>
 			<?php if ( ! empty( $retry_stats['aborted'] ) ) : ?>
 				<span style="color:#b32d2e">&middot; <?php esc_html_e( 'circuit breaker tripped (Catbox likely down): paused until the next sweep.', 'wp-news-collector' ); ?></span>
 			<?php endif; ?>

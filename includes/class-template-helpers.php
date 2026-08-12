@@ -27,8 +27,16 @@ class NC_Template_Helpers {
 		$videos = (array) ( $item['videos'] ?? [] );
 		// Posters of un-fixed too_big videos: used to suppress duplicate pending entries
 		$too_big_posters = [];
+		// Every poster, to keep a loose image that repeats one out of the deck: Catbox
+		// returns a single file for identical bytes, so a photo and a video thumbnail
+		// of the same frame end up sharing a URL. Painted here rather than waited for,
+		// so the view is right before the sweep gets to the stored copy.
+		$all_posters = [];
 		foreach ( $videos as $v ) {
 			$v = (array) $v;
+			if ( ! empty( $v['poster_url'] ) ) {
+				$all_posters[ (string) $v['poster_url'] ] = true;
+			}
 			if ( ( $v['status'] ?? '' ) === 'too_big' && empty( $v['catbox_url'] ) && ! empty( $v['poster_url'] ) ) {
 				$too_big_posters[ (string) $v['poster_url'] ] = true;
 			}
@@ -67,7 +75,7 @@ class NC_Template_Helpers {
 		if ( ! $has_cover ) {
 			foreach ( (array) ( $item['images'] ?? [] ) as $img_url ) {
 				$img_url = (string) $img_url;
-				if ( '' !== $img_url ) {
+				if ( '' !== $img_url && ! isset( $all_posters[ $img_url ] ) ) {
 					$media[] = [ 'kind' => 'image', 'src' => $img_url ];
 				}
 			}

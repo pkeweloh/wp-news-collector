@@ -200,6 +200,86 @@ class NC_Item_Repository {
 		return isset( $item['published_at'] ) ? (string) $item['published_at'] : null;
 	}
 
+	// An item whose images repeat a video's poster: the card paints the same frame
+	// twice, once as the video thumbnail and once as a loose photo. Literals only,
+	// so it is safe to interpolate.
+	private const POSTER_IN_IMAGES_SQL = "EXISTS (
+		SELECT 1 FROM JSON_TABLE(
+			CASE WHEN JSON_VALID(images) THEN images ELSE '[]' END,
+			'$[*]' COLUMNS ( val VARCHAR(500) PATH '$' )
+		) ji
+		JOIN JSON_TABLE(
+			CASE WHEN JSON_VALID(videos) THEN videos ELSE '[]' END,
+			'$[*]' COLUMNS ( poster VARCHAR(500) PATH '$.poster_url' )
+		) jv ON jv.poster COLLATE utf8mb4_bin = ji.val COLLATE utf8mb4_bin
+		WHERE ji.val <> ''
+	)";
+
+	/**
+	 * Drop images that repeat a video's poster. Returns the items changed.
+	 *
+	 * Ingest already strips this before uploading, but that compares the URLs
+	 * Telegram served and the collision only shows up afterwards: Catbox answers
+	 * with the same file for identical bytes, so a photo and the video thumbnail of
+	 * the same frame come back as one URL. The repair paths never had the check at
+	 * all, since they work piece by piece and never see the whole item.
+	 *
+	 * @param string $item_guid Limit to one item; '' sweeps every item.
+	 */
+	public function dedupe_poster_images( string $item_guid = '' ): int {
+		global $wpdb;
+		$where = self::POSTER_IN_IMAGES_SQL;
+		if ( '' !== $item_guid ) {
+			$where .= $wpdb->prepare( ' AND guid = %s', $item_guid );
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows    = $wpdb->get_results( "SELECT id, images, videos FROM {$this->table} WHERE {$where}", ARRAY_A );
+		$changed = 0;
+		foreach ( (array) $rows as $row ) {
+			$images = self::strip_poster_images(
+				$this->decode_json_array( $row['images'] ?? '' ),
+				$this->decode_json_array( $row['videos'] ?? '' )
+			);
+			$wpdb->update(
+				$this->table,
+				[ 'images' => wp_json_encode( $images ) ],
+				[ 'id' => (int) $row['id'] ],
+				[ '%s' ],
+				[ '%d' ]
+			);
+			$changed++;
+		}
+		return $changed;
+	}
+
+	/**
+	 * Images minus the ones that are already some video's poster. The poster is
+	 * what gives the video its thumbnail before play, so the loose image is always
+	 * the piece that goes.
+	 *
+	 * @param array<int, mixed> $images
+	 * @param array<int, mixed> $videos
+	 * @return array<int, string>
+	 */
+	public static function strip_poster_images( array $images, array $videos ): array {
+		$posters = [];
+		foreach ( $videos as $v ) {
+			$poster = (string) ( ( (array) $v )['poster_url'] ?? '' );
+			if ( '' !== $poster ) {
+				$posters[ $poster ] = true;
+			}
+		}
+		$out = [];
+		foreach ( $images as $url ) {
+			$url = (string) $url;
+			if ( '' !== $url && isset( $posters[ $url ] ) ) {
+				continue;
+			}
+			$out[] = $url;
+		}
+		return $out;
+	}
+
 	/**
 	 * Return all item IDs in ascending order. Useful for batch maintenance jobs.
 	 *

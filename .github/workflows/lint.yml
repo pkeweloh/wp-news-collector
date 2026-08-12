@@ -31,3 +31,6 @@ jobs:
 
       - name: Run feed parser tests
         run: php tests/test-feed-parser.php
+
+      - name: Run poster dedupe tests
+        run: php tests/test-catbox-dedupe.php

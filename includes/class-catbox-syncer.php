@@ -106,6 +106,9 @@ class NC_Catbox_Syncer {
 		$published_at = $this->items->replace_media_url( $guid, $upload_type, $original, $new_url );
 		$this->uploads->set_result( $upload_id, $new_url, null );
 		$this->uploads->log_attempt( $guid, $upload_type, $original, $trigger, NC_Catbox_Uploader::OUTCOME_OK );
+		// Catbox answers with the same file for identical bytes, so the repaired
+		// piece may have just landed on a URL the item already holds elsewhere.
+		$this->items->dedupe_poster_images( $guid );
 		$album_id = $this->assign_one_to_album( $new_url, $published_at );
 		return [ 'ok' => true, 'catbox_url' => $new_url, 'album_id' => $album_id ];
 	}
@@ -116,7 +119,7 @@ class NC_Catbox_Syncer {
 	 * A 404/410 source is retired and kept out of the breaker: counting dead links
 	 * would abort every sweep and starve the pieces that are still recoverable.
 	 *
-	 * @return array{attempted:int, succeeded:int, failed:int, gone:int, orphaned:int, aborted:bool, remaining:int, ran_at:string}
+	 * @return array{attempted:int, succeeded:int, failed:int, gone:int, orphaned:int, reconciled:int, deduped:int, aborted:bool, remaining:int, ran_at:string}
 	 */
 	public function retry_failed(
 		int $batch_size = 10,
@@ -130,6 +133,12 @@ class NC_Catbox_Syncer {
 		// Each sweep re-reads the embed pages: a link signed on the previous run
 		// may already have expired.
 		$this->media_cache = [];
+
+		// Both tidy stored state by looking at the whole item, which a piece-by-piece
+		// retry never does. Reconciling runs before anything else in the sweep: past
+		// this point park_orphan() would file a resolved piece as an orphan.
+		$stats['reconciled'] = $this->uploads->reconcile_resolved_uploads();
+		$stats['deduped']    = $this->items->dedupe_poster_images();
 
 		// Over-fetch: the linked filter runs in PHP, so orphans must not eat the batch.
 		$candidates  = $this->uploads->get_retryable_uploads( gmdate( 'Y-m-d H:i:s' ), $max_attempts, max( $batch_size * 5, 100 ) );
@@ -205,12 +214,19 @@ class NC_Catbox_Syncer {
 		foreach ( $rows as $row ) {
 			$catbox   = (string) ( $row['catbox_url'] ?? '' );
 			$original = (string) ( $row['original_url'] ?? '' );
-			if ( ( '' !== $catbox && isset( $referenced[ $catbox ] ) )
-				|| ( '' !== $original && isset( $referenced[ $original ] ) ) ) {
+			// No item carries this guid, so the row cannot describe a piece of any
+			// live item, whatever its URL says. That happens when the same message
+			// was ingested under both guid spellings (t.me and telegram.me): the
+			// leftovers point at a URL the surviving item legitimately uses, and a
+			// scan by URL alone would protect them for good.
+			$dead = ! isset( $live_guids[ (string) ( $row['item_guid'] ?? '' ) ] );
+			if ( ! $dead
+				&& ( ( '' !== $catbox && isset( $referenced[ $catbox ] ) )
+					|| ( '' !== $original && isset( $referenced[ $original ] ) ) ) ) {
 				continue;
 			}
 			$orphan_ids[] = (int) ( $row['id'] ?? 0 );
-			if ( ! isset( $live_guids[ (string) ( $row['item_guid'] ?? '' ) ] ) ) {
+			if ( $dead ) {
 				$dead_guid++;
 			}
 			if ( '' !== (string) ( $row['error'] ?? '' ) ) {
@@ -345,6 +361,9 @@ class NC_Catbox_Syncer {
 			$this->assign_one_to_album( $new_url, (string) ( $item['published_at'] ?? '' ) );
 			$results[] = [ 'type' => $upload_type, 'catbox_url' => $new_url ];
 		}
+
+		// Same collision as in retry_upload, now for the whole item at once.
+		$this->items->dedupe_poster_images( $guid );
 
 		$failed = 0;
 		foreach ( $results as $r ) {
