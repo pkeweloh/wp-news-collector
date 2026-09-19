@@ -9,6 +9,7 @@
  * @var int                              $failed
  * @var array<string, mixed>|null        $sync_stats
  * @var array<string, mixed>|null        $retry_stats
+ * @var int                               $sweep_untouched
  * @var string                           $msg
  * @var array<int, array<string, mixed>> $covers
  */
@@ -145,6 +146,38 @@ $msg_map = [
 				<span style="color:#b32d2e">&middot; <?php esc_html_e( 'circuit breaker tripped (Catbox likely down): paused until the next sweep.', 'wp-news-collector' ); ?></span>
 			<?php endif; ?>
 		</p>
+		<?php if ( '' !== (string) ( $retry_stats['error'] ?? '' ) ) : ?>
+			<p style="margin:.35rem 0 0;color:#b32d2e">
+				<?php
+				printf(
+					// translators: 1: date/time, 2: error message
+					esc_html__( 'The sweep of %1$s died before finishing: %2$s', 'wp-news-collector' ),
+					esc_html( NC_Template_Helpers::format_date_es( (string) ( $retry_stats['error_at'] ?? '' ) ) ),
+					esc_html( (string) $retry_stats['error'] )
+				);
+				?>
+			</p>
+		<?php endif; ?>
+	<?php endif; ?>
+	<?php if ( (int) $sweep_untouched > 0 ) : ?>
+		<div class="notice notice-error inline" style="margin:.75rem 0 0">
+			<p>
+				<?php
+				printf(
+					// translators: %d: number of pieces
+					esc_html(
+						_n(
+							'%d failed piece older than a day has never been retried. The automatic sweep is not running: check the nc_catbox_retry action under Tools > Scheduled Actions.',
+							'%d failed pieces older than a day have never been retried. The automatic sweep is not running: check the nc_catbox_retry action under Tools > Scheduled Actions.',
+							(int) $sweep_untouched,
+							'wp-news-collector'
+						)
+					),
+					(int) $sweep_untouched
+				);
+				?>
+			</p>
+		</div>
 	<?php endif; ?>
 
 	<p style="margin:1rem 0 0">

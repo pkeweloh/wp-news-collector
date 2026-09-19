@@ -48,6 +48,7 @@ class NC_Catbox_Uploads_Page {
 		$attempt_counts = $this->uploads->attempt_outcome_counts( $attempt_days );
 		$alarm_days     = self::ALARM_WINDOW_DAYS;
 		$markup_alarm   = $this->uploads->count_markup_alarm( $alarm_days );
+		$sweep_untouched = $this->uploads->count_sweep_untouched( $max_attempts );
 
 		// The view needs this to hide retry buttons that could not work.
 		$failed_rows = [];

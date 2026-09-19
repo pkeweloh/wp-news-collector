@@ -720,3 +720,11 @@ msgstr[1] "%d retiradas (origen caducado)."
 
 msgid "%1$d already resolved, %2$d duplicate posters removed."
 msgstr "%1$d ya resueltas, %2$d pósters duplicados eliminados."
+
+msgid "%d failed piece older than a day has never been retried. The automatic sweep is not running: check the nc_catbox_retry action under Tools > Scheduled Actions."
+msgid_plural "%d failed pieces older than a day have never been retried. The automatic sweep is not running: check the nc_catbox_retry action under Tools > Scheduled Actions."
+msgstr[0] "%d pieza fallida de hace más de un día no se ha reintentado nunca. El barrido automático no corre: revisa la acción nc_catbox_retry en Herramientas > Scheduled Actions."
+msgstr[1] "%d piezas fallidas de hace más de un día no se han reintentado nunca. El barrido automático no corre: revisa la acción nc_catbox_retry en Herramientas > Scheduled Actions."
+
+msgid "The sweep of %1$s died before finishing: %2$s"
+msgstr "El barrido de %1$s murió antes de terminar: %2$s"

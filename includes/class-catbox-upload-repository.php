@@ -246,6 +246,33 @@ class NC_Catbox_Upload_Repository {
 		);
 	}
 
+	/** Same retirement, keyed the way the per-item button knows its pieces. */
+	public function mark_piece_source_gone( string $item_guid, string $original_url ): void {
+		global $wpdb;
+		$wpdb->update(
+			$this->uploads_table,
+			[ 'source_gone' => 1 ],
+			[ 'item_guid' => $item_guid, 'original_url' => $original_url ],
+			[ '%d' ],
+			[ '%s', '%s' ]
+		);
+	}
+
+	/**
+	 * Pieces a live sweep would have touched by now: it takes never-scheduled rows
+	 * first and bumps retry_count on every failure, so a day-old piece still
+	 * untouched means the sweep is not running. In alerta-boe it died for five
+	 * weeks behind a generic error and nobody saw it.
+	 */
+	public function count_sweep_untouched( int $max_attempts, int $hours = 24 ): int {
+		global $wpdb;
+		$stale = gmdate( 'Y-m-d H:i:s', time() - max( 1, $hours ) * HOUR_IN_SECONDS );
+		$sql   = 'SELECT COUNT(*) FROM ' . $this->uploads_table . ' WHERE ' . self::LIVE_FAILED_WHERE . ' AND ' . self::UNDER_CAP
+			. ' AND retry_count = 0 AND next_retry_at IS NULL AND uploaded_at < %s';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( $sql, $max_attempts, $max_attempts, $stale ) );
+	}
+
 	/**
 	 * Retired rows that could still be recovered, for the caller's linked filter.
 	 *
@@ -275,14 +302,19 @@ class NC_Catbox_Upload_Repository {
 		global $wpdb;
 		$ids     = array_values( array_unique( array_map( 'intval', $ids ) ) );
 		$updated = 0;
+		// Due now rather than NULL: a never-scheduled row that is a month old reads
+		// as "the sweep is not running" (count_sweep_untouched) for the hour until
+		// the next pass picks it up.
+		$now = gmdate( 'Y-m-d H:i:s' );
 		foreach ( array_chunk( $ids, 500 ) as $chunk ) {
 			$placeholders = implode( ',', array_fill( 0, count( $chunk ), '%d' ) );
 			$updated     += (int) $wpdb->query(
 				$wpdb->prepare(
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					"UPDATE {$this->uploads_table}
-					 SET source_gone = 0, retry_count = 0, next_retry_at = NULL
+					 SET source_gone = 0, retry_count = 0, next_retry_at = %s
 					 WHERE id IN ({$placeholders})",
+					$now,
 					...$chunk
 				)
 			);
@@ -330,6 +362,9 @@ class NC_Catbox_Upload_Repository {
 		// uk_catbox_url is on catbox_url, so a URL another row already claims cannot
 		// be written here. That other row is the same upload logged by the path that
 		// repaired it, which makes this one a duplicate with nothing left to say.
+		// Ownership is refreshed as rows are closed: two rows resolving to one URL in
+		// the same pass would otherwise both look free and the second write would
+		// hit the index.
 		$owners  = $this->catbox_url_owners( array_values( $pairs ) );
 		$closed  = 0;
 		$dupes   = [];
@@ -347,6 +382,7 @@ class NC_Catbox_Upload_Repository {
 				[ '%s', '%s', '%s' ],
 				[ '%d' ]
 			);
+			$owners[ $url ] = $id;
 			$closed++;
 		}
 		return $closed + $this->delete_by_ids( $dupes );

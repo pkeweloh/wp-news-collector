@@ -82,16 +82,15 @@ class NC_Catbox_Syncer {
 		$upload_type = (string) ( $row['upload_type'] ?? '' );
 		$original    = (string) ( $row['original_url'] ?? '' );
 		$item        = $this->items->get_by_guid( $guid ) ?? [];
-		$source      = $this->upload_source( $item, $upload_type, $original );
-
-		if ( $source['markup_alarm'] ) {
-			// The stale URL would 404 and retire a recoverable piece under a false cause.
-			$this->uploads->set_result( $upload_id, null, NC_Telegram_Media::MARKUP_ALARM );
-			$this->uploads->log_attempt( $guid, $upload_type, $original, $trigger, NC_Catbox_Uploader::OUTCOME_DOWNLOAD_FAILED, NC_Telegram_Media::MARKUP_ALARM );
-			return [ 'ok' => false, 'error' => NC_Telegram_Media::MARKUP_ALARM, 'outcome' => NC_Catbox_Uploader::OUTCOME_DOWNLOAD_FAILED ];
-		}
 
 		try {
+			$source = $this->upload_source( $item, $upload_type, $original );
+			if ( $source['markup_alarm'] ) {
+				// The stale URL would 404 and retire a recoverable piece under a false cause.
+				$this->uploads->set_result( $upload_id, null, NC_Telegram_Media::MARKUP_ALARM );
+				$this->uploads->log_attempt( $guid, $upload_type, $original, $trigger, NC_Catbox_Uploader::OUTCOME_DOWNLOAD_FAILED, NC_Telegram_Media::MARKUP_ALARM );
+				return [ 'ok' => false, 'error' => NC_Telegram_Media::MARKUP_ALARM, 'outcome' => NC_Catbox_Uploader::OUTCOME_DOWNLOAD_FAILED ];
+			}
 			$new_url = $this->catbox->upload_from_url( $source['url'] );
 		} catch ( NC_Catbox_Exception $e ) {
 			$this->uploads->set_result( $upload_id, null, $e->getMessage() );
@@ -178,6 +177,12 @@ class NC_Catbox_Syncer {
 			$retry_count = (int) ( $row['retry_count'] ?? 0 );
 			$delay       = (int) min( $backoff_cap, $backoff_base * ( 2 ** $retry_count ) );
 			$this->uploads->schedule_upload_retry( $id, gmdate( 'Y-m-d H:i:s', time() + $delay ) );
+			// The breaker guards against Catbox or the network being down. A markup
+			// alarm is neither, and two alarmed pieces of one message would otherwise
+			// trip it on every sweep.
+			if ( NC_Telegram_Media::MARKUP_ALARM === ( $result['error'] ?? '' ) ) {
+				continue;
+			}
 			$consecutive++;
 			if ( $breaker_threshold > 0 && $consecutive >= $breaker_threshold ) {
 				$stats['aborted'] = true;
@@ -341,17 +346,21 @@ class NC_Catbox_Syncer {
 
 		$results = [];
 		foreach ( $this->pending_pieces( $item ) as [ $upload_type, $original ] ) {
-			$src = $this->upload_source( $item, $upload_type, $original );
-			if ( $src['markup_alarm'] ) {
-				$this->uploads->log_attempt( $guid, $upload_type, $original, 'manual', NC_Catbox_Uploader::OUTCOME_DOWNLOAD_FAILED, NC_Telegram_Media::MARKUP_ALARM );
-				$results[] = [ 'type' => $upload_type, 'error' => NC_Telegram_Media::MARKUP_ALARM ];
-				continue;
-			}
 			try {
+				$src = $this->upload_source( $item, $upload_type, $original );
+				if ( $src['markup_alarm'] ) {
+					$this->uploads->log_attempt( $guid, $upload_type, $original, 'manual', NC_Catbox_Uploader::OUTCOME_DOWNLOAD_FAILED, NC_Telegram_Media::MARKUP_ALARM );
+					$results[] = [ 'type' => $upload_type, 'error' => NC_Telegram_Media::MARKUP_ALARM ];
+					continue;
+				}
 				$new_url = $this->catbox->upload_from_url( $src['url'] );
 			} catch ( NC_Catbox_Exception $e ) {
+				$outcome = NC_Catbox_Uploader::outcome_of( $e );
 				$this->uploads->resolve_result( $source, $source_name, $guid, $upload_type, $original, null, $e->getMessage() );
-				$this->uploads->log_attempt( $guid, $upload_type, $original, 'manual', NC_Catbox_Uploader::outcome_of( $e ), $e->getMessage() );
+				$this->uploads->log_attempt( $guid, $upload_type, $original, 'manual', $outcome, $e->getMessage() );
+				if ( NC_Catbox_Uploader::OUTCOME_DOWNLOAD_GONE === $outcome ) {
+					$this->uploads->mark_piece_source_gone( $guid, $original );
+				}
 				$results[] = [ 'type' => $upload_type, 'error' => $e->getMessage() ];
 				continue;
 			}
@@ -411,6 +420,7 @@ class NC_Catbox_Syncer {
 	 *
 	 * @param array<string, mixed> $item
 	 * @return array{url:string, markup_alarm:bool}
+	 * @throws NC_Catbox_Exception permanent, when the channel no longer serves the message.
 	 */
 	private function upload_source( array $item, string $upload_type, string $original_url ): array {
 		if ( 'article_image' === $upload_type ) {
@@ -431,8 +441,14 @@ class NC_Catbox_Syncer {
 			if ( ! empty( $ids ) ) {
 				return [ 'url' => NC_OG_Scraper::youtube_thumbnail( (string) $ids[0] ), 'markup_alarm' => false ];
 			}
-		} elseif ( in_array( $upload_type, [ 'image', 'poster', 'video' ], true ) ) {
+		} elseif ( in_array( $upload_type, [ 'image', 'poster', 'video' ], true )
+			// An og:image cover lands in `images` under any host, and the message page
+			// knows nothing about it: asking would raise a false markup alarm.
+			&& NC_Telegram_Media::is_cdn_url( $original_url ) ) {
 			$media = $this->message_media( $item );
+			if ( ! empty( $media['gone'] ) ) {
+				throw new NC_Catbox_Exception( NC_Telegram_Media::MESSAGE_GONE, 'download', true );
+			}
 			$fresh = NC_Telegram_Media::fresh_url_for( $item, $upload_type, $original_url, $media );
 			if ( '' !== $fresh ) {
 				return [ 'url' => $fresh, 'markup_alarm' => false ];

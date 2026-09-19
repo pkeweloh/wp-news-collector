@@ -21,7 +21,9 @@ class NC_Catbox_Page {
 		$total_uploads = $this->uploads->count_total();
 		$unassigned    = $this->uploads->count_unassigned();
 		// Same cap as the uploads page, so both read "failed" as "still actionable".
-		$failed        = $this->uploads->count_failed( (int) ( NC_Plugin::get_settings()['catbox_retry_max_attempts'] ?? 0 ) );
+		$max_attempts  = (int) ( NC_Plugin::get_settings()['catbox_retry_max_attempts'] ?? 0 );
+		$failed        = $this->uploads->count_failed( $max_attempts );
+		$sweep_untouched = $this->uploads->count_sweep_untouched( $max_attempts );
 		$covers        = $this->covers->get_all();
 		foreach ( $covers as $i => $cover ) {
 			$covers[ $i ]['sample_ids'] = $this->items->find_ids_with_image(

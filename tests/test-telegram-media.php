@@ -56,6 +56,15 @@ $video_html = <<<'HTML'
 </div>
 HTML;
 
+// Real t.me answer for a deleted post, trimmed.
+$gone_html = <<<'HTML'
+<div class="tgme_widget_message text_not_supported_wrap err_message js-widget_message">
+  <div class="tgme_widget_message_bubble">
+    <div class="tgme_widget_message_error" dir="auto">Post not found</div>
+  </div>
+</div>
+HTML;
+
 $text_only_html = <<<'HTML'
 <div class="tgme_widget_message" data-post="canal/71624">
   <div class="tgme_widget_message_bubble">
@@ -115,6 +124,21 @@ assert_eq( 'text-only message is suspect', NC_Telegram_Media::markup_suspect( $t
 $no_message = NC_Telegram_Media::parse( '<html><body>Post not found</body></html>' );
 assert_eq( 'page without a message has_message', $no_message['has_message'], false, $failures );
 assert_eq( 'page without a message is not an alarm', NC_Telegram_Media::markup_suspect( $no_message ), false, $failures );
+
+// A deleted post comes wrapped in the same message div, so it is not "message
+// present, no media" but "no message at all", and it must say so.
+$gone_media = NC_Telegram_Media::parse( $gone_html );
+assert_eq( 'deleted post is gone', $gone_media['gone'], true, $failures );
+assert_eq( 'deleted post has no message', $gone_media['has_message'], false, $failures );
+assert_eq( 'deleted post is not an alarm', NC_Telegram_Media::markup_suspect( $gone_media ), false, $failures );
+assert_eq( 'live post is not gone', $text_media['gone'], false, $failures );
+
+// Only a Telegram-signed URL can be renewed from the message page; an og:image
+// cover stored under any other host must never be asked about there.
+assert_eq( 'telesco.pe is a CDN url', NC_Telegram_Media::is_cdn_url( 'https://cdn4.telesco.pe/file/abc.jpg' ), true, $failures );
+assert_eq( 'cdn-telegram.org is a CDN url', NC_Telegram_Media::is_cdn_url( 'https://cdn5.cdn-telegram.org/file/abc.mp4' ), true, $failures );
+assert_eq( 'wikimedia is not a CDN url', NC_Telegram_Media::is_cdn_url( 'https://thumb.wikimedia.org/x/960px-a.jpg?utm=1' ), false, $failures );
+assert_eq( 'catbox is not a CDN url', NC_Telegram_Media::is_cdn_url( 'https://files.catbox.moe/abc.jpg' ), false, $failures );
 
 // Matching by position
 

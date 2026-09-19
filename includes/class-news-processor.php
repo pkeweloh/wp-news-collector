@@ -424,10 +424,21 @@ class NC_News_Processor {
 	}
 
 	/**
+	 * Pages whose og:image may serve as the cover of a post without images.
+	 *
+	 * A post with a video already has its cover (the poster). And any t.me page
+	 * (hashtags link to the post's own page, forwards to the origin post) serves
+	 * as og:image a signed telesco.pe thumbnail the embed page never lists, so
+	 * once expired it can never be re-minted: it sits in the retry queue with a
+	 * 404, or raises a false markup alarm against a post that never had a photo.
+	 *
 	 * @param array<string, mixed> $item
 	 * @return string[]
 	 */
 	private function og_candidate_urls( array $item ): array {
+		if ( ! empty( $item['videos'] ) ) {
+			return [];
+		}
 		$urls = [];
 		if ( is_array( $item['article'] ) && '' !== ( $item['article']['url'] ?? '' ) ) {
 			$urls[] = (string) $item['article']['url'];
@@ -435,6 +446,9 @@ class NC_News_Processor {
 		$text = (string) ( $item['text'] ?? '' );
 		if ( preg_match_all( '~href="(https?://[^"]+)"~', $text, $m ) ) {
 			foreach ( $m[1] as $href ) {
+				if ( 1 === preg_match( '~^https?://(www\.)?(t|telegram)\.me/~i', $href ) ) {
+					continue;
+				}
 				if ( ! in_array( $href, $urls, true ) ) {
 					$urls[] = $href;
 				}

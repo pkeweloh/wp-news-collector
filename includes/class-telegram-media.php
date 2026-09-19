@@ -18,6 +18,7 @@ defined( 'ABSPATH' ) || exit;
 class NC_Telegram_Media {
 
 	public const MARKUP_ALARM = 'Telegram embed unreadable: the t.me markup may have changed';
+	public const MESSAGE_GONE = 'Telegram post deleted: the channel no longer serves it';
 
 	private const TIMEOUT    = 30;
 	private const USER_AGENT = 'Mozilla/5.0';
@@ -28,6 +29,14 @@ class NC_Telegram_Media {
 	private const PLAYER_CLASS = 'tgme_widget_message_video_player';
 	private const THUMB_CLASS  = 'tgme_widget_message_video_thumb';
 	private const MSG_CLASS    = 'tgme_widget_message';
+	// A deleted post still comes wrapped in a `.tgme_widget_message` (with
+	// `err_message` added), so it would read as "message present, no media" and
+	// trip the markup alarm: ten readings of one dead post did exactly that.
+	private const ERROR_CLASS  = 'tgme_widget_message_error';
+
+	// Where Telegram serves media from. Only a piece stored under one of these can
+	// be re-minted from the message page; anything else is retried as it is.
+	private const CDN_HOST_RE = '~^https?://[^/]*\.(telesco\.pe|cdn-telegram\.org|telegram\.org)/~i';
 
 	/**
 	 * The message's permanent address, or '' when the item is not a Telegram post.
@@ -53,7 +62,7 @@ class NC_Telegram_Media {
 	 * fall back to the stored URL.
 	 *
 	 * @param array<string, mixed> $item
-	 * @return array{photos:string[], videos:list<array{0:string, 1:string}>, readable:bool, has_message:bool}
+	 * @return array{photos:string[], videos:list<array{0:string, 1:string}>, readable:bool, has_message:bool, gone:bool}
 	 */
 	public static function fetch( array $item ): array {
 		$url = self::embed_url( $item );
@@ -80,14 +89,16 @@ class NC_Telegram_Media {
 	/**
 	 * Photos and videos in page order, which is the order the item stores them in.
 	 *
-	 * @return array{photos:string[], videos:list<array{0:string, 1:string}>, readable:bool, has_message:bool}
+	 * @return array{photos:string[], videos:list<array{0:string, 1:string}>, readable:bool, has_message:bool, gone:bool}
 	 */
 	public static function parse( string $html ): array {
 		$dom   = self::load_html( $html );
 		$xpath = new DOMXPath( $dom );
 		$media = self::empty_media( true );
 
-		$media['has_message'] = $xpath->query( '//*[' . self::has_class( self::MSG_CLASS ) . ']' )->length > 0;
+		$media['gone']        = $xpath->query( '//*[' . self::has_class( self::ERROR_CLASS ) . ']' )->length > 0;
+		$media['has_message'] = ! $media['gone']
+			&& $xpath->query( '//*[' . self::has_class( self::MSG_CLASS ) . ']' )->length > 0;
 
 		foreach ( $xpath->query( '//a[' . self::has_class( self::PHOTO_CLASS ) . ']' ) as $wrap ) {
 			$url = self::background_url( $wrap );
@@ -104,6 +115,11 @@ class NC_Telegram_Media {
 		}
 
 		return $media;
+	}
+
+	/** Whether a stored URL is one Telegram signed, and so one the embed page can renew. */
+	public static function is_cdn_url( string $url ): bool {
+		return 1 === preg_match( self::CDN_HOST_RE, $url );
 	}
 
 	/**
@@ -182,9 +198,9 @@ class NC_Telegram_Media {
 		return "contains(concat(' ', normalize-space(@class), ' '), ' " . $class . " ')";
 	}
 
-	/** @return array{photos:string[], videos:list<array{0:string, 1:string}>, readable:bool, has_message:bool} */
+	/** @return array{photos:string[], videos:list<array{0:string, 1:string}>, readable:bool, has_message:bool, gone:bool} */
 	private static function empty_media( bool $readable ): array {
-		return [ 'photos' => [], 'videos' => [], 'readable' => $readable, 'has_message' => false ];
+		return [ 'photos' => [], 'videos' => [], 'readable' => $readable, 'has_message' => false, 'gone' => false ];
 	}
 
 	private static function load_html( string $html ): DOMDocument {

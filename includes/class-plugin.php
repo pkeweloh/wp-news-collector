@@ -173,11 +173,23 @@ class NC_Plugin {
 			|| empty( $settings['catbox_retry_enabled'] ) ) {
 			return;
 		}
-		$this->syncer->retry_failed(
-			max( 1, (int) $settings['catbox_retry_batch_size'] ),
-			(int) $settings['catbox_retry_max_attempts'],
-			(int) $settings['catbox_retry_breaker_threshold']
-		);
+		try {
+			$this->syncer->retry_failed(
+				max( 1, (int) $settings['catbox_retry_batch_size'] ),
+				(int) $settings['catbox_retry_max_attempts'],
+				(int) $settings['catbox_retry_breaker_threshold']
+			);
+		} catch ( Throwable $e ) {
+			// Action Scheduler marks the action failed and moves on, so without this
+			// a sweep that dies before saving its stats dies unseen, every hour.
+			$stats             = get_option( 'nc_catbox_retry_stats', [] );
+			$stats             = is_array( $stats ) ? $stats : [];
+			$stats['error']    = $e->getMessage();
+			$stats['error_at'] = gmdate( 'Y-m-d H:i:s' );
+			update_option( 'nc_catbox_retry_stats', $stats );
+			error_log( 'nc_catbox_retry_error: ' . $e->getMessage() );
+			throw $e;
+		}
 	}
 
 	public static function default_settings(): array {

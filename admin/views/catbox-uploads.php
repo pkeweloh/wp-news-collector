@@ -10,6 +10,7 @@
  * @var int                        $gone
  * @var int                        $max_attempts
  * @var int                        $markup_alarm
+ * @var int                        $sweep_untouched
  * @var int                        $alarm_days
  * @var array<string, mixed>|null  $cleanup_stats
  * @var string                     $msg
@@ -120,6 +121,26 @@ $base_url = add_query_arg( [ 'page' => 'nc_catbox_uploads' ], admin_url( 'admin.
 					),
 					(int) $markup_alarm,
 					(int) $alarm_days
+				);
+				?>
+			</p>
+		</div>
+	<?php endif; ?>
+	<?php if ( (int) $sweep_untouched > 0 ) : ?>
+		<div class="notice notice-error inline" style="margin:.75rem 0 0">
+			<p>
+				<?php
+				printf(
+					// translators: %d: number of pieces
+					esc_html(
+						_n(
+							'%d failed piece older than a day has never been retried. The automatic sweep is not running: check the nc_catbox_retry action under Tools > Scheduled Actions.',
+							'%d failed pieces older than a day have never been retried. The automatic sweep is not running: check the nc_catbox_retry action under Tools > Scheduled Actions.',
+							(int) $sweep_untouched,
+							'wp-news-collector'
+						)
+					),
+					(int) $sweep_untouched
 				);
 				?>
 			</p>

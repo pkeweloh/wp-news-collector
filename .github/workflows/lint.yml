@@ -34,3 +34,9 @@ jobs:
 
       - name: Run poster dedupe tests
         run: php tests/test-catbox-dedupe.php
+
+      - name: Run Telegram embed reader tests
+        run: php tests/test-telegram-media.php
+
+      - name: Run Catbox salt tests
+        run: php tests/test-catbox-salt.php
